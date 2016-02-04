@@ -1,0 +1,10 @@
+
+A IRC bot framework written in Go.
+
+Following abilites are supported:
+
+* Server raw logging
+* Channel logging
+* Channel/Private message parsing and handling
+* Administrative commands through stdin
+
