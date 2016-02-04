@@ -1,0 +1,30 @@
+{
+	"Proxy": "https://127.0.0.1:3213",
+	"Name": "Freenode",
+	"IrcServer": "irc.freenode.net",
+	"Port": 7000,
+	"Ssl": true,
+	"BotNick": "mybot",
+	"Username": "mybot",
+	"RealName": "Dr. My Bot",
+	"Identify_passwd": "******",
+	"HomeDir": ".",
+	"LogDir": "./log",
+	"IRCTrigger": 47,
+	"ChannelTrigger": 63,
+	"BotTrigger": 33,
+	"AutoConnect": true,
+	"Channels": [
+		{
+			"Name": "#botters",
+			"Trigger": 0,
+			"NoShowURLTitle": false
+		},
+		{
+			"Name": "#botters-test",
+			"Trigger": 0,
+			"NoShowURLTitle": false
+		}
+	],
+	"RawLogging": true
+}
