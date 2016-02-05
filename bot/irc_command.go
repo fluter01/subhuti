@@ -74,6 +74,11 @@ func (irc *IRC) Names(channel string) error {
 
 // list
 // invite
+// :adams.freenode.net 341 fluter candice #rdma
+func (irc *IRC) Invite(nick, channel string) error {
+	msg := fmt.Sprintf("INVITE %s %s", nick, channel)
+	return irc.sendMsg(msg)
+}
 // kick
 
 func (irc *IRC) Privmsg(to, msg string) error {

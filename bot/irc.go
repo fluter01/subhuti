@@ -100,6 +100,7 @@ func NewIRC(bot *Bot) *IRC {
 	irc.timer = nil
 	irc.cxTimer = make(chan bool)
 	irc.channels = make(map[string]*Channel)
+	// IRC internal handlers, plugins should use Events to register
 	irc.handlers = map[string]CommandHandler{
 		"PING":    irc.onPing,
 		"PONG":    irc.onPong,
@@ -108,6 +109,7 @@ func NewIRC(bot *Bot) *IRC {
 		"PART":    irc.onPart,
 		"QUIT":    irc.onQuit,
 		"NICK":    irc.onNick,
+		"INVITE":  irc.onInvite,
 		"NOTICE":  irc.onNotice,
 		"MODE":    irc.onMode,
 		"ERROR":   irc.onError,
@@ -414,6 +416,11 @@ func (irc *IRC) readLoop() {
 		if err != nil {
 			irc.Logger().Print("Read error:", err)
 			irc.disconnect()
+			// network caused disconnect, reconnecting
+			defer func() {
+				irc.Logger().Print("Reconnecting to server")
+				irc.connect()
+			}()
 			break
 		}
 	}

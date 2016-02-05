@@ -118,6 +118,24 @@ func (irc *IRC) onNick(from, param string) {
 	}
 }
 
+func (irc *IRC) onInvite(from, param string) {
+	var nick string
+	var me string
+	var channel string
+
+	nick, _, _ = matchNickUserHost(from)
+	channel = irc.getReplyBySpace(param)
+	me = strings.SplitN(param, " ", 2)[0]
+
+	if me != irc.bot.config.BotNick {
+		// suspicous invite message not directing to me
+		panic(me)
+	}
+
+	irc.Logger().Printf("%s is inviting me to join %s", nick, channel)
+	irc.Join(channel)
+}
+
 func (irc *IRC) onPrivmsg(from, param string) {
 	//    var reply string
 	var nick, user, host string
