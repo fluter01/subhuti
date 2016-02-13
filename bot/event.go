@@ -11,6 +11,16 @@ type EventType int
 const (
 	UserInput EventType = iota
 
+	UserJoin
+
+	UserPart
+
+	UserQuit
+
+	UserNick
+
+	Pong
+
 	PrivateMessage
 
 	ChannelMessage
@@ -18,24 +28,30 @@ const (
 	EventCount
 )
 
+var EventNames [EventCount]string = [...]string{
+	"UserInput",
+	"UserJoin",
+	"UserPart",
+	"UserQuit",
+	"UserNick",
+	"Pong",
+	"PrivateMessage",
+	"ChannelMessage",
+}
+
 type Event struct {
 	evt  EventType
 	data interface{}
 }
 
 type EventHandler func(interface{})
+type EventHandlers []EventHandler
 
 func (evt EventType) String() string {
-	switch evt {
-	case UserInput:
-		return "UserInput"
-	case PrivateMessage:
-		return "PrivateMessage"
-	case ChannelMessage:
-		return "ChannelMessage"
-	default:
-		return "Unknown"
+	if evt < EventCount {
+		return EventNames[evt]
 	}
+	return "Unknown"
 }
 
 func (event Event) String() string {
@@ -50,6 +66,28 @@ func NewEvent(typ EventType, data interface{}) *Event {
 }
 
 // event data
+
+// UserJoin
+type UserJoinData struct {
+	from, nick, user, host string
+	channel string
+}
+
+type UserPartData struct {
+	from, nick, user, host string
+	channel string
+	msg string
+}
+
+type UserQuitData struct {
+	from, nick, user, host string
+	msg string
+}
+
+type UserNickData struct {
+	from, nick, user, host string
+	newNick string
+}
 
 // PrivateMessage
 type PrivateMessageData struct {

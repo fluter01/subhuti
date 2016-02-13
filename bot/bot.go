@@ -23,24 +23,13 @@ type Bot struct {
 	name   string
 	config *BotConfig
 
-	quit chan bool
-
 	modules []Module
-
-	handlers []EventHandler
-
-	stdin *Stdin
-
-	eventQ chan *Event
-
+	handlers []EventHandlers
 	cmdMap CmdMap
-
 	start time.Time
-
 	logger Logger
-}
-
-func init() {
+	eventQ chan *Event
+	quit chan bool
 }
 
 func NewBot(name string, config *BotConfig) *Bot {
@@ -57,7 +46,7 @@ func NewBot(name string, config *BotConfig) *Bot {
 	bot.modules[MOD_STDIN] = NewStdin(bot)
 	bot.modules[MOD_INTERPRETER] = NewInterpreter(bot)
 
-	bot.handlers = make([]EventHandler, EventCount)
+	bot.handlers = make([]EventHandlers, EventCount)
 	bot.handlers[UserInput] = bot.handleUserInput
 	bot.handlers[PrivateMessage] = bot.handlePrivateMessage
 	bot.handlers[ChannelMessage] = bot.handleChannelMessage
@@ -136,11 +125,12 @@ func (bot *Bot) Logger() Logger {
 
 // event methods
 func (bot *Bot) handleEvent(event *Event) {
+	var hs EventHandlers
 	var h EventHandler
 
 	if event.evt < EventCount {
-		h = bot.handlers[event.evt]
-		if h == nil {
+		hs = bot.handlers[event.evt]
+		if hs == nil {
 			bot.Logger().Printf("BUG: %s unhandled", event.evt)
 			return
 		}
@@ -156,6 +146,9 @@ func (bot *Bot) AddEvent(event *Event) {
 
 func (bot *Bot) GetEvent() *Event {
 	return <-bot.eventQ
+}
+
+func (bot *Bot) RegisterEventHandler(evt EventType, h EventHandler) {
 }
 
 // end event methods

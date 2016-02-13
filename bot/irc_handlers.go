@@ -43,10 +43,10 @@ func (irc *IRC) onPong(prefix, param string) {
 }
 
 func (irc *IRC) onJoin(from, cha string) {
-	var nick string
+	var nick, user, host string
 	var ch *Channel
 
-	nick, _, _ = matchNickUserHost(from)
+	nick, user, host = matchNickUserHost(from)
 
 	// confirm of channel join from server
 	if nick == irc.bot.config.BotNick {
@@ -58,15 +58,21 @@ func (irc *IRC) onJoin(from, cha string) {
 	// other users joined the channel I'm in
 	ch = irc.GetChannel(cha)
 	ch.onJoin(from)
+
+	irc.bot.AddEvent(
+		NewEvent(
+			UserJoin,
+			&UserJoinData{
+				from, nick, user, host, cha}))
 }
 
 func (irc *IRC) onPart(from, param string) {
-	var nick string
+	var nick, user, host string
 	var arr []string
 	var chn string
 	var partMsg string
 
-	nick, _, _ = matchNickUserHost(from)
+	nick, user, host = matchNickUserHost(from)
 
 	arr = strings.SplitN(param, ":", 2)
 	chn = strings.TrimSpace(arr[0])
@@ -86,13 +92,20 @@ func (irc *IRC) onPart(from, param string) {
 		ch = irc.LeaveChannel(chn)
 		ch.Stop()
 	}
+
+	irc.bot.AddEvent(
+		NewEvent(
+			UserPart,
+			&UserPartData{
+				from, nick, user, host, chn, partMsg}))
 }
 
 func (irc *IRC) onQuit(from, param string) {
-	var nick string
+	var nick, user, host string
 	var ch *Channel
+	var quitMsg string = param[1:]
 
-	nick, _, _ = matchNickUserHost(from)
+	nick, user, host = matchNickUserHost(from)
 
 	for _, ch = range irc.channels {
 		ch.onQuit(nick, from, param)
@@ -102,20 +115,32 @@ func (irc *IRC) onQuit(from, param string) {
 			ch.Stop()
 		}
 	}
+
+	irc.bot.AddEvent(
+		NewEvent(
+			UserQuit,
+			&UserQuitData{
+				from, nick, user, host, quitMsg}))
 }
 
 func (irc *IRC) onNick(from, param string) {
-	var nick string
+	var nick, user, host string
 	var newNick string
 
 	newNick = param[1:]
 
-	nick, _, _ = matchNickUserHost(from)
+	nick, user, host = matchNickUserHost(from)
 
 	var ch *Channel
 	for _, ch = range irc.channels {
 		ch.onNick(nick, newNick)
 	}
+
+	irc.bot.AddEvent(
+		NewEvent(
+			UserNick,
+			&UserNickData{
+				from, nick, user, host, newNick}))
 }
 
 func (irc *IRC) onInvite(from, param string) {
