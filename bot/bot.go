@@ -23,13 +23,13 @@ type Bot struct {
 	name   string
 	config *BotConfig
 
-	modules []Module
+	modules  []Module
 	handlers []EventHandlers
-	cmdMap CmdMap
-	start time.Time
-	logger Logger
-	eventQ chan *Event
-	quit chan bool
+	cmdMap   CmdMap
+	start    time.Time
+	logger   Logger
+	eventQ   chan *Event
+	quit     chan bool
 }
 
 func NewBot(name string, config *BotConfig) *Bot {
@@ -47,9 +47,14 @@ func NewBot(name string, config *BotConfig) *Bot {
 	bot.modules[MOD_INTERPRETER] = NewInterpreter(bot)
 
 	bot.handlers = make([]EventHandlers, EventCount)
-	bot.handlers[UserInput] = bot.handleUserInput
-	bot.handlers[PrivateMessage] = bot.handlePrivateMessage
-	bot.handlers[ChannelMessage] = bot.handleChannelMessage
+	bot.RegisterEventHandler(UserInput, bot.handleUserInput)
+	bot.RegisterEventHandler(PrivateMessage, bot.handlePrivateMessage)
+	bot.RegisterEventHandler(ChannelMessage, bot.handleChannelMessage)
+	bot.RegisterEventHandler(UserJoin, HandleUserJoin)
+	bot.RegisterEventHandler(UserPart, HandleUserPart)
+	bot.RegisterEventHandler(UserQuit, HandleUserQuit)
+	bot.RegisterEventHandler(UserNick, HandleUserNick)
+	bot.RegisterEventHandler(Pong, HandlePong)
 
 	bot.cmdMap = make(map[string]CmdFunc)
 
@@ -102,7 +107,7 @@ func (bot *Bot) Loop() {
 		if event == nil {
 			break
 		}
-		bot.Logger().Printf("Event %s", event)
+		//bot.Logger().Printf("Event %s", event)
 		bot.handleEvent(event)
 		//bot.handlers[event.evt](event.data)
 	}
@@ -134,7 +139,9 @@ func (bot *Bot) handleEvent(event *Event) {
 			bot.Logger().Printf("BUG: %s unhandled", event.evt)
 			return
 		}
-		h(event.data)
+		for _, h = range hs {
+			h(event.data)
+		}
 	} else {
 		bot.Logger().Println("Unknown event type:", event.evt)
 	}
@@ -149,6 +156,7 @@ func (bot *Bot) GetEvent() *Event {
 }
 
 func (bot *Bot) RegisterEventHandler(evt EventType, h EventHandler) {
+	bot.handlers[evt] = append(bot.handlers[evt], h)
 }
 
 // end event methods

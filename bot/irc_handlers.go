@@ -39,7 +39,15 @@ func (irc *IRC) onPing(prefix, param string) {
 	irc.Pong(param)
 }
 
+// format: :sinisalo.freenode.net PONG sinisalo.freenode.net :chat.freenode.net
 func (irc *IRC) onPong(prefix, param string) {
+	var from, origin string
+	arr := strings.SplitN(param, " ", 2)
+	from = arr[0]
+	origin = arr[1][1:]
+
+	irc.bot.AddEvent(NewEvent(Pong,
+		&PongData{irc.bot, from, origin}))
 }
 
 func (irc *IRC) onJoin(from, cha string) {
@@ -63,7 +71,7 @@ func (irc *IRC) onJoin(from, cha string) {
 		NewEvent(
 			UserJoin,
 			&UserJoinData{
-				from, nick, user, host, cha}))
+				EventBase{irc.bot, from, nick, user, host}, cha}))
 }
 
 func (irc *IRC) onPart(from, param string) {
@@ -97,7 +105,8 @@ func (irc *IRC) onPart(from, param string) {
 		NewEvent(
 			UserPart,
 			&UserPartData{
-				from, nick, user, host, chn, partMsg}))
+				EventBase{irc.bot, from, nick, user, host},
+				chn, partMsg}))
 }
 
 func (irc *IRC) onQuit(from, param string) {
@@ -120,7 +129,8 @@ func (irc *IRC) onQuit(from, param string) {
 		NewEvent(
 			UserQuit,
 			&UserQuitData{
-				from, nick, user, host, quitMsg}))
+				EventBase{irc.bot, from, nick, user, host},
+				quitMsg}))
 }
 
 func (irc *IRC) onNick(from, param string) {
@@ -140,7 +150,8 @@ func (irc *IRC) onNick(from, param string) {
 		NewEvent(
 			UserNick,
 			&UserNickData{
-				from, nick, user, host, newNick}))
+				EventBase{irc.bot, from, nick, user, host},
+				newNick}))
 }
 
 func (irc *IRC) onInvite(from, param string) {
@@ -189,8 +200,10 @@ func (irc *IRC) onPrivmsg(from, param string) {
 		ch.onPrivmsg(nick, msg)
 
 		irc.bot.AddEvent(NewEvent(ChannelMessage,
-			NewChannelMessageData(from, nick,
-				user, host, msg, to)))
+			&ChannelMessageData{
+				PrivateMessageData{
+					EventBase{irc.bot, from, nick, user, host},
+					msg}, to}))
 	} else {
 		// handle ctcp
 		if msg[0] == xdelim && msg[len(msg)-1] == xdelim {
@@ -199,8 +212,9 @@ func (irc *IRC) onPrivmsg(from, param string) {
 		}
 		irc.Logger().Printf("<%s> %s", nick, msg)
 		irc.bot.AddEvent(NewEvent(PrivateMessage,
-			NewPrivateMessageData(from,
-				nick, user, host, msg)))
+			&PrivateMessageData{
+				EventBase{irc.bot, from, nick, user, host},
+				msg}))
 	}
 }
 

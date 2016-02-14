@@ -25,6 +25,8 @@ const (
 
 	ChannelMessage
 
+	Disconnect
+
 	EventCount
 )
 
@@ -37,6 +39,7 @@ var EventNames [EventCount]string = [...]string{
 	"Pong",
 	"PrivateMessage",
 	"ChannelMessage",
+	"Disconnect",
 }
 
 type Event struct {
@@ -67,35 +70,39 @@ func NewEvent(typ EventType, data interface{}) *Event {
 
 // event data
 
-// UserJoin
+type EventBase struct {
+	bot  *Bot
+	from string
+	nick string
+	user string
+	host string
+}
+
 type UserJoinData struct {
-	from, nick, user, host string
+	EventBase
 	channel string
 }
 
 type UserPartData struct {
-	from, nick, user, host string
+	EventBase
 	channel string
-	msg string
+	msg     string
 }
 
 type UserQuitData struct {
-	from, nick, user, host string
+	EventBase
 	msg string
 }
 
 type UserNickData struct {
-	from, nick, user, host string
+	EventBase
 	newNick string
 }
 
 // PrivateMessage
 type PrivateMessageData struct {
-	from, nick, user, host, text string
-}
-
-func NewPrivateMessageData(from, nick, user, host, text string) *PrivateMessageData {
-	return &PrivateMessageData{from, nick, user, host, text}
+	EventBase
+	text string
 }
 
 // ChannelMessage
@@ -104,6 +111,8 @@ type ChannelMessageData struct {
 	channel string
 }
 
-func NewChannelMessageData(from, nick, user, host, text, channel string) *ChannelMessageData {
-	return &ChannelMessageData{PrivateMessageData{from, nick, user, host, text}, channel}
+type PongData struct {
+	bot    *Bot
+	from   string
+	origin string
 }
