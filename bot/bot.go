@@ -128,7 +128,7 @@ func (bot *Bot) Logger() Logger {
 	return bot.logger
 }
 
-// event methods
+// events
 func (bot *Bot) handleEvent(event *Event) {
 	var hs EventHandlers
 	var h EventHandler
@@ -159,7 +159,7 @@ func (bot *Bot) RegisterEventHandler(evt EventType, h EventHandler) {
 	bot.handlers[evt] = append(bot.handlers[evt], h)
 }
 
-// end event methods
+// end events
 
 func (bot *Bot) handleUserInput(data interface{}) {
 	var input string
@@ -244,55 +244,3 @@ func (bot *Bot) handleCommand(cmd string) {
 		bot.Logger().Printf("Failed to handle command %s: %s", cmd, err)
 	}
 }
-
-// bot command handlers
-func (bot *Bot) onSave(string) error {
-	return bot.config.Save()
-}
-
-func (bot *Bot) onShow(string) error {
-	bot.Logger().Println("======== Config: ========")
-	bot.Logger().Printf("%#v\n", bot.config)
-	bot.Logger().Print("=========================")
-	return nil
-}
-
-func (bot *Bot) onStatus(string) error {
-	var mod Module
-	bot.Logger().Print("======== Status: ========")
-	for _, mod = range bot.modules {
-		bot.Logger().Printf("Module %s %s", mod, mod.Status())
-	}
-	bot.Logger().Print("=========================")
-	return nil
-}
-
-func (bot *Bot) onExit(string) error {
-	var err error
-	var mod Module
-	for _, mod = range bot.modules {
-		bot.Logger().Printf("Stopping module %s", mod)
-		err = mod.Stop()
-		if err != nil {
-			bot.Logger().Printf("Stop module %s failed: %s", mod, err)
-		}
-	}
-	close(bot.eventQ)
-	return nil
-}
-
-func (bot *Bot) onConnect(string) error {
-	return bot.IRC().connect()
-}
-
-func (bot *Bot) onDisconnect(string) error {
-	bot.IRC().disconnect()
-	return nil
-}
-
-func (bot *Bot) onReconnect(string) error {
-	bot.IRC().disconnect()
-	return bot.IRC().connect()
-}
-
-// end event handlers
