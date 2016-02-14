@@ -7,7 +7,7 @@ func HandleUserJoin(data interface{}) {
 
 	join = data.(*UserJoinData)
 
-	join.bot.Logger().Printf("%s joined %s", join.nick, join.channel)
+	NewNopLogger(nil, "").Printf("%s joined %s", join.nick, join.channel)
 }
 
 func HandleUserPart(data interface{}) {
@@ -15,7 +15,7 @@ func HandleUserPart(data interface{}) {
 
 	part = data.(*UserPartData)
 
-	part.bot.Logger().Printf("%s parted %s: %s", part.nick, part.channel, part.msg)
+	NewNopLogger(nil, "").Printf("%s parted %s: %s", part.nick, part.channel, part.msg)
 }
 
 func HandleUserQuit(data interface{}) {
@@ -23,7 +23,7 @@ func HandleUserQuit(data interface{}) {
 
 	quit = data.(*UserQuitData)
 
-	quit.bot.Logger().Printf("%s quited: %s", quit.nick, quit.msg)
+	NewNopLogger(nil, "").Printf("%s quited: %s", quit.nick, quit.msg)
 }
 
 func HandleUserNick(data interface{}) {
@@ -31,7 +31,7 @@ func HandleUserNick(data interface{}) {
 
 	nick = data.(*UserNickData)
 
-	nick.bot.Logger().Printf("%s changed nick %s", nick.nick, nick.newNick)
+	NewNopLogger(nil, "").Printf("%s changed nick %s", nick.nick, nick.newNick)
 }
 
 func HandlePong(data interface{}) {
@@ -39,5 +39,5 @@ func HandlePong(data interface{}) {
 
 	pong = data.(*PongData)
 
-	pong.bot.Logger().Printf("pong from %s: %s", pong.from, pong.origin)
+	NewNopLogger(nil, "").Printf("pong from %s: %s", pong.from, pong.origin)
 }
