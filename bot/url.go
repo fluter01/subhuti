@@ -14,7 +14,9 @@ import (
 
 	"github.com/fluter01/paste/bpaste"
 	"github.com/fluter01/paste/codepad"
+	"github.com/fluter01/paste/ideone"
 	"github.com/fluter01/paste/pastebin"
+	"github.com/fluter01/paste/pastie"
 	"github.com/fluter01/paste/sprunge"
 )
 
@@ -75,6 +77,14 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 			req.nick, res)
 	case "bpaste.net":
 		res = p.parseBpaste(urls)
+		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
+			req.nick, res)
+	case "ideone.com":
+		res = p.parseIdeone(urls)
+		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
+			req.nick, res)
+	case "pastie.org":
+		res = p.parsePastie(urls)
 		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
 			req.nick, res)
 	}
@@ -159,6 +169,27 @@ func (p *URLParser) parseCodepad(urls string) string {
 	return id
 }
 
+func (p *URLParser) parseIdeone(urls string) string {
+	var err error
+	var id string
+	var data string
+
+	id, err = ideone.GetID(urls)
+	if err != nil {
+		return ""
+	}
+	data, err = ideone.Get(id)
+	if err != nil {
+		return ""
+	}
+
+	id, err = sprunge.Put(data)
+	if err != nil {
+		return ""
+	}
+	return id
+}
+
 func (p *URLParser) parseBpaste(urls string) string {
 	var err error
 	var id string
@@ -169,6 +200,27 @@ func (p *URLParser) parseBpaste(urls string) string {
 		return ""
 	}
 	data, err = bpaste.Get(id)
+	if err != nil {
+		return ""
+	}
+
+	id, err = sprunge.Put(data)
+	if err != nil {
+		return ""
+	}
+	return id
+}
+
+func (p *URLParser) parsePastie(urls string) string {
+	var err error
+	var id string
+	var data string
+
+	id, err = pastie.GetID(urls)
+	if err != nil {
+		return ""
+	}
+	data, err = pastie.Get(id)
 	if err != nil {
 		return ""
 	}
