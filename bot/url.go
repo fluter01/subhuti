@@ -195,7 +195,7 @@ func (p *URLParser) submitToCompile(code string) (string, error) {
 	err = s.Compile(&arg, &res)
 
 	if err != nil {
-		fmt.Println("Failed to call rpc service:", err)
+		p.i.Logger().Println("Failed to call rpc service:", err)
 		return "", err
 	}
 
