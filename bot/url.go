@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/net/html"
 
+	"github.com/fluter01/lotsawa"
+
 	"github.com/fluter01/paste/bpaste"
 	"github.com/fluter01/paste/codepad"
 	"github.com/fluter01/paste/ideone"
@@ -53,9 +55,12 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 
 	//fmt.Println(u.Host)
 
+	var paste bool = false
+	var getID func(string) (string, error)
+	var get func(string) (string, error)
 	switch strings.ToLower(u.Host) {
 	default:
-		if !p.i.bot.config.ShowURLTitle(req.channel) {
+		if p.i.bot.config.IgnoreURLTitle(req.channel) {
 			res = ""
 			break
 		}
@@ -68,25 +73,32 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 	case "youtube.com", "www.youtube.com":
 		res = p.parseYoutube(urls)
 	case "pastebin.com", "www.pastebin.com":
-		res = p.parsePastebin(urls)
-		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
-			req.nick, res)
+		paste = true
+		getID = pastebin.GetID
+		get = pastebin.Get
 	case "codepad.org":
-		res = p.parseCodepad(urls)
-		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
-			req.nick, res)
+		paste = true
+		getID = codepad.GetID
+		get = codepad.Get
 	case "bpaste.net":
-		res = p.parseBpaste(urls)
-		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
-			req.nick, res)
+		paste = true
+		getID = bpaste.GetID
+		get = bpaste.Get
 	case "ideone.com":
-		res = p.parseIdeone(urls)
-		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
-			req.nick, res)
+		paste = true
+		getID = ideone.GetID
+		get = ideone.Get
 	case "pastie.org":
-		res = p.parsePastie(urls)
-		res = fmt.Sprintf("%s's paste: %s -- for those who curl",
-			req.nick, res)
+		paste = true
+		getID = pastie.GetID
+		get = pastie.Get
+	}
+	if paste {
+		code, compiled := p.parsePaste(urls, getID, get)
+		res = fmt.Sprintf("%s's paste: %s -- for those who curl", req.nick, code)
+		if compiled {
+			res += fmt.Sprintf(", also issues found, please address them first.")
+		}
 	}
 	return res, nil
 }
@@ -127,107 +139,69 @@ func (p *URLParser) parseYoutube(urls string) string {
 	return ""
 }
 
-func (p *URLParser) parsePastebin(urls string) string {
+func (p *URLParser) parsePaste(urls string, getID func(string) (string, error),
+	get func(string) (string, error)) (string, bool) {
 	var err error
 	var id string
 	var data string
+	var issues string
 
-	id, err = pastebin.GetID(urls)
+	id, err = getID(urls)
 	if err != nil {
-		return ""
+		return "", false
 	}
-	data, err = pastebin.Get(id)
+	data, err = get(id)
 	if err != nil {
-		return ""
+		return "", false
 	}
 
+	var with_issues bool = false
+	issues, err = p.submitToCompile(data)
+
+	if err == nil && issues != "" {
+		with_issues = true
+	}
+
+	if !with_issues {
+		id, err = sprunge.Put(data)
+		if err != nil {
+			return "", false
+		}
+		return id, false
+	}
+
+	data = fmt.Sprintf("%s\n\n"+
+		"----------------------------------------------------------------\n"+
+		"%s", data, issues)
 	id, err = sprunge.Put(data)
 	if err != nil {
-		return ""
+		return "", false
 	}
-	return id
+
+	return id, true
 }
 
-func (p *URLParser) parseCodepad(urls string) string {
+func (p *URLParser) submitToCompile(code string) (string, error) {
 	var err error
-	var id string
-	var data string
 
-	id, err = codepad.GetID(urls)
+	var s *lotsawa.CompileServiceStub
+	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.bot.config.CompileServer)
 	if err != nil {
-		return ""
+		p.i.Logger().Println("Failed to dial rpc server:", err)
+		return "", err
 	}
-	data, err = codepad.Get(id)
-	if err != nil {
-		return ""
-	}
+	var arg lotsawa.CompileArgs = lotsawa.CompileArgs{code, "C"}
+	var res lotsawa.CompileReply
+	err = s.Compile(&arg, &res)
 
-	id, err = sprunge.Put(data)
 	if err != nil {
-		return ""
-	}
-	return id
-}
-
-func (p *URLParser) parseIdeone(urls string) string {
-	var err error
-	var id string
-	var data string
-
-	id, err = ideone.GetID(urls)
-	if err != nil {
-		return ""
-	}
-	data, err = ideone.Get(id)
-	if err != nil {
-		return ""
+		fmt.Println("Failed to call rpc service:", err)
+		return "", err
 	}
 
-	id, err = sprunge.Put(data)
-	if err != nil {
-		return ""
+	var issues string
+	if res.C_Output != "" || res.C_Error != "" {
+		issues = fmt.Sprintf("%s%s", res.C_Output, res.C_Error)
 	}
-	return id
-}
-
-func (p *URLParser) parseBpaste(urls string) string {
-	var err error
-	var id string
-	var data string
-
-	id, err = bpaste.GetID(urls)
-	if err != nil {
-		return ""
-	}
-	data, err = bpaste.Get(id)
-	if err != nil {
-		return ""
-	}
-
-	id, err = sprunge.Put(data)
-	if err != nil {
-		return ""
-	}
-	return id
-}
-
-func (p *URLParser) parsePastie(urls string) string {
-	var err error
-	var id string
-	var data string
-
-	id, err = pastie.GetID(urls)
-	if err != nil {
-		return ""
-	}
-	data, err = pastie.Get(id)
-	if err != nil {
-		return ""
-	}
-
-	id, err = sprunge.Put(data)
-	if err != nil {
-		return ""
-	}
-	return id
+	return issues, nil
 }

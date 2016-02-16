@@ -32,10 +32,12 @@ type BotConfig struct {
 	Channels []struct {
 		Name           string
 		Trigger        byte
-		NoShowURLTitle bool
+		IgnoreURLTitle bool
 	}
 
 	RawLogging bool
+
+	CompileServer string
 }
 
 func (config *BotConfig) String() string {
@@ -140,14 +142,14 @@ func (config *BotConfig) Trigger(channel string) string {
 	return string(c)
 }
 
-func (config *BotConfig) ShowURLTitle(channel string) bool {
-	var show bool = true
+func (config *BotConfig) IgnoreURLTitle(channel string) bool {
+	var ignore bool = false
 
 	for _, ch := range config.Channels {
 		if ch.Name == channel {
-			show = !ch.NoShowURLTitle
+			ignore = ch.IgnoreURLTitle
 			break
 		}
 	}
-	return show
+	return ignore
 }
