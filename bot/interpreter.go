@@ -307,7 +307,8 @@ Found:
 			i.Logger().Printf("%s error: %s", keyword, err)
 		}
 	} else {
-		result = fmt.Sprintf("Unknown command: %s", keyword)
+		i.Logger().Printf("Unknown command: %s", keyword)
+		result = ""
 	}
 	i.cRsp <- &MessageResponse{req, result}
 
@@ -315,10 +316,10 @@ Found:
 }
 
 func (i *Interpreter) handleResponse(resp *MessageResponse) {
-	i.Logger().Printf("%s", resp)
 	if resp.text == "" {
 		return
 	}
+	i.Logger().Printf("%s", resp)
 	if resp.req.ischan {
 		i.bot.IRC().Privmsg(resp.req.channel, resp.text)
 	} else {
