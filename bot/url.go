@@ -95,9 +95,9 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 	}
 	if paste {
 		code, compiled := p.parsePaste(urls, getID, get)
-		res = fmt.Sprintf("%s's paste: %s -- for those who curl", req.nick, code)
+		res = fmt.Sprintf("%s's paste: %s -- ", req.nick, code)
 		if compiled {
-			res += fmt.Sprintf(", also issues found, please address them first.")
+			res += fmt.Sprintf(" issues found, please address them first!")
 		}
 	}
 	return res, nil
