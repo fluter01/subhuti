@@ -65,7 +65,9 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 			break
 		}
 		title := p.getTitle(urls)
-		if req.direct {
+		if title == "" {
+			res = ""
+		} else if req.direct {
 			res = fmt.Sprintf("%s: Title of the link: %s", req.nick, title)
 		} else {
 			res = fmt.Sprintf("Title of %s's link: %s", req.nick, title)
@@ -95,9 +97,9 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 	}
 	if paste {
 		code, compiled := p.parsePaste(urls, getID, get)
-		res = fmt.Sprintf("%s's paste: %s -- ", req.nick, code)
+		res = fmt.Sprintf("%s's paste: %s", req.nick, code)
 		if compiled {
-			res += fmt.Sprintf(" issues found, please address them first!")
+			res += fmt.Sprintf(" -- issues found, please address them first!")
 		}
 	}
 	return res, nil
