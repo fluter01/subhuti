@@ -136,6 +136,10 @@ func (p *URLParser) getTitle(urls string) string {
 			}
 		}
 	}
+
+	result = strings.Replace(result, "\n", " ", -1)
+	result = strings.Replace(result, "\r", "", -1)
+
 	return result
 }
 
