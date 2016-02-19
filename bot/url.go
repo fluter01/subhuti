@@ -3,13 +3,14 @@
 package bot
 
 import (
+	"errors"
 	"fmt"
 	"github.com/mvdan/xurls"
-	_ "io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/net/html"
 
@@ -23,17 +24,31 @@ import (
 	"github.com/fluter01/paste/sprunge"
 )
 
-const fnamePtn = "filename=\"(.*)\""
+const (
+	fnamePtn    = "filename=\"(.*)\""
+	httpTimeout = 5
+	maxRedirect = 3
+)
 
 var fnameRe = regexp.MustCompile(fnamePtn)
 
 type URLParser struct {
-	i *Interpreter
+	i      *Interpreter
+	client *http.Client
 }
 
 func NewURLParser(i *Interpreter) *URLParser {
 	p := new(URLParser)
 	p.i = i
+	client := new(http.Client)
+	client.Timeout = httpTimeout * time.Second
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxRedirect {
+			return errors.New(fmt.Sprintf("stopped after %d redirects", maxRedirect))
+		}
+		return nil
+	}
+	p.client = client
 	return p
 }
 
@@ -117,7 +132,7 @@ func (p *URLParser) getTitle(urls string) string {
 	var result string
 
 	// only proceed with text documents
-	resp, err = http.Head(urls)
+	resp, err = p.client.Head(urls)
 	if err != nil {
 		p.i.Logger().Printf("Http Head error: %s", err)
 		return result
@@ -134,7 +149,7 @@ func (p *URLParser) getTitle(urls string) string {
 		return result
 	}
 
-	resp, err = http.Get(urls)
+	resp, err = p.client.Get(urls)
 	if err != nil {
 		p.i.Logger().Printf("Http Get error: %s", err)
 		return result
