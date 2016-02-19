@@ -84,10 +84,12 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		title := p.getTitle(urls)
 		if title == "" {
 			res = ""
+		} else if !req.ischan {
+			res = fmt.Sprintf("Your link: %s", title)
 		} else if req.direct {
-			res = fmt.Sprintf("%s: Title of the link: %s", req.nick, title)
+			res = fmt.Sprintf("%s: Your link: %s", req.nick, title)
 		} else {
-			res = fmt.Sprintf("Title of %s's link: %s", req.nick, title)
+			res = fmt.Sprintf("%s's link: %s", req.nick, title)
 		}
 	case "youtube.com", "www.youtube.com":
 		res = p.parseYoutube(urls)
@@ -142,7 +144,6 @@ func (p *URLParser) getTitle(urls string) string {
 		// get file name if present
 		disp := resp.Header.Get("Content-Disposition")
 		m := fnameRe.FindStringSubmatch(disp)
-		fmt.Println(m)
 		if len(m) == 2 && len(m[1]) > 0 {
 			result = "filename: " + m[1]
 		}
