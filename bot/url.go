@@ -78,6 +78,7 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 	switch strings.ToLower(u.Host) {
 	default:
 		if p.i.bot.config.IgnoreURLTitle(req.channel) {
+			p.i.Logger().Printf("Ignoring url title for %s", req.channel)
 			res = ""
 			break
 		}
