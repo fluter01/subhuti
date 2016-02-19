@@ -58,6 +58,6 @@ func TestURLParser1(t *testing.T) {
 	u = "https://www.reddit.com/r/windows10"
 	testURLParser(u, "Windows 10", t)
 
-	u = "https://golang.org/"
-	testURLParser(u, "The Go Programming Language", t)
+	//	u = "https://golang.org/"
+	//	testURLParser(u, "The Go Programming Language", t)
 }

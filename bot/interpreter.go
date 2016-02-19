@@ -233,10 +233,9 @@ func (i *Interpreter) handleRequest(req *MessageRequest) {
 		req.direct = true
 	}
 
-	for n, p := range i.parsers {
+	for _, p := range i.parsers {
 		result, err = p.Parse(req)
 		if err == nil {
-			i.Logger().Printf("Handled by %s", n)
 			i.cRsp <- &MessageResponse{req, result}
 			return
 		}

@@ -33,14 +33,13 @@ func NewURLParser(i *Interpreter) *URLParser {
 }
 
 func (p *URLParser) Parse(req *MessageRequest) (string, error) {
-	//fmt.Println(req.text)
 	urls := xurls.Strict.FindString(req.text)
 	if len(urls) == 0 {
 		return "", NotParsed
 	}
 
+	p.i.Logger().Printf("URL parser processing")
 	var res string
-	// p.i.Logger().Println("URL:", urls)
 
 	res = fmt.Sprintf("URL is %s", urls)
 
@@ -52,8 +51,6 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		p.i.Logger().Printf("Invalid URL: %s", urls)
 		return "", NotParsed
 	}
-
-	//fmt.Println(u.Host)
 
 	var paste bool = false
 	var getID func(string) (string, error)
@@ -109,9 +106,21 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 }
 
 func (p *URLParser) getTitle(urls string) string {
+	const maxTitleLen = 256
 	var resp *http.Response
 	var err error
 	var result string
+
+	// only proceed with text documents
+	resp, err = http.Head(urls)
+	if err != nil {
+		p.i.Logger().Printf("Http Head error: %s", err)
+		return result
+	}
+	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/") {
+		p.i.Logger().Println("Not text document, skipping")
+		return result
+	}
 
 	resp, err = http.Get(urls)
 	if err != nil {
@@ -137,8 +146,14 @@ func (p *URLParser) getTitle(urls string) string {
 		}
 	}
 
+	if len(result) > maxTitleLen {
+		result = result[:maxTitleLen] + "...<too long, truncated>"
+	}
+
 	result = strings.Replace(result, "\n", " ", -1)
 	result = strings.Replace(result, "\r", "", -1)
+
+	p.i.Logger().Println("Returning title:", result)
 
 	return result
 }
