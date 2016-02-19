@@ -8,6 +8,7 @@ import (
 	_ "io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -21,6 +22,10 @@ import (
 	"github.com/fluter01/paste/pastie"
 	"github.com/fluter01/paste/sprunge"
 )
+
+const fnamePtn = "filename=\"(.*)\""
+
+var fnameRe = regexp.MustCompile(fnamePtn)
 
 type URLParser struct {
 	i *Interpreter
@@ -118,7 +123,14 @@ func (p *URLParser) getTitle(urls string) string {
 		return result
 	}
 	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/") {
-		p.i.Logger().Println("Not text document, skipping")
+		p.i.Logger().Println("Not text document, skipping download")
+		// get file name if present
+		disp := resp.Header.Get("Content-Disposition")
+		m := fnameRe.FindStringSubmatch(disp)
+		fmt.Println(m)
+		if len(m) == 2 && len(m[1]) > 0 {
+			result = "filename: " + m[1]
+		}
 		return result
 	}
 
@@ -150,8 +162,11 @@ func (p *URLParser) getTitle(urls string) string {
 		result = result[:maxTitleLen] + "...<too long, truncated>"
 	}
 
+	// remove message seperators
 	result = strings.Replace(result, "\n", " ", -1)
 	result = strings.Replace(result, "\r", "", -1)
+	// remove ctcp SOH
+	result = strings.Replace(result, "\001", "", -1)
 
 	p.i.Logger().Println("Returning title:", result)
 
