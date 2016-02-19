@@ -189,8 +189,6 @@ func (irc *IRC) onPrivmsg(from, param string) {
 		}
 	}
 
-	msg = strings.TrimSpace(msg)
-
 	if IsChannel(to) {
 		// get channel
 		// send message to channel
@@ -206,7 +204,7 @@ func (irc *IRC) onPrivmsg(from, param string) {
 					msg}, to}))
 	} else {
 		// handle ctcp
-		if msg[0] == xdelim && msg[len(msg)-1] == xdelim {
+		if len(msg) > 2 && msg[0] == soh && msg[len(msg)-1] == soh {
 			irc.onCtcp(nick, msg)
 			return
 		}

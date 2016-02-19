@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const xdelim = '\001'
+const soh = '\001'
 
 type CTCP string
 
@@ -50,9 +50,9 @@ func (irc *IRC) ctcp(target string, typ CTCP, param string) error {
 	var msg string
 
 	if param == "" {
-		msg = fmt.Sprintf("%c%s%c", xdelim, typ, xdelim)
+		msg = fmt.Sprintf("%c%s%c", soh, typ, soh)
 	} else {
-		msg = fmt.Sprintf("%c%s %s%c", xdelim, typ, param, xdelim)
+		msg = fmt.Sprintf("%c%s %s%c", soh, typ, param, soh)
 	}
 
 	return irc.Privmsg(target, msg)
@@ -133,9 +133,9 @@ func (irc *IRC) CtcpReply(typ CTCP, target, reply string) {
 	var msg string
 
 	if reply == "" {
-		msg = fmt.Sprintf("%c%s%c", xdelim, typ, xdelim)
+		msg = fmt.Sprintf("%c%s%c", soh, typ, soh)
 	} else {
-		msg = fmt.Sprintf("%c%s %s%c", xdelim, typ, reply, xdelim)
+		msg = fmt.Sprintf("%c%s %s%c", soh, typ, reply, soh)
 	}
 	irc.Notice(target, msg)
 }
