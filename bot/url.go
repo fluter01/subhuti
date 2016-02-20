@@ -242,6 +242,7 @@ func (p *URLParser) submitToCompile(code string) (string, error) {
 
 	var s *lotsawa.CompileServiceStub
 	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.bot.config.CompileServer)
+	defer s.Close()
 	if err != nil {
 		p.i.Logger().Println("Failed to dial rpc server:", err)
 		return "", err
