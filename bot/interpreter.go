@@ -72,9 +72,6 @@ type Parser interface {
 	Parse(*MessageRequest) (string, error)
 }
 
-// irc message command
-type run func(*MessageRequest, string) (string, error)
-
 type Interpreter struct {
 	bot   *Bot
 	state ModState
@@ -87,7 +84,7 @@ type Interpreter struct {
 	wg *sync.WaitGroup
 
 	parsers  map[string]Parser
-	commands map[string]run
+	commands map[string]Command
 
 	nickRe *regexp.Regexp
 }
@@ -101,10 +98,10 @@ func NewInterpreter(bot *Bot) *Interpreter {
 	i.cxReq = make(chan bool)
 	i.cxRsp = make(chan bool)
 
-	i.commands = make(map[string]run)
+	i.commands = make(map[string]Command)
 
-	i.Register("VERSION", HandleVersion)
-	i.Register("SOURCE", HandleSource)
+	i.AddCommand("VERSION", new(VersionCommand))
+	i.AddCommand("SOURCE", new(SourceCommand))
 
 	i.parsers = make(map[string]Parser)
 	i.AddParser("URL", NewURLParser(i))
@@ -162,7 +159,7 @@ func (i *Interpreter) AddParser(name string, parser Parser) {
 	i.parsers[name] = parser
 }
 
-func (i *Interpreter) RemoveParser(name string) {
+func (i *Interpreter) DelParser(name string) {
 	delete(i.parsers, name)
 }
 
@@ -171,15 +168,19 @@ func (i *Interpreter) ListParser() []Parser {
 }
 
 // commands management
-func (i *Interpreter) Register(command string, proc run) {
-	i.commands[command] = proc
+func (i *Interpreter) AddCommand(name string, cmd Command) {
+	i.commands[name] = cmd
 }
 
-func (i *Interpreter) GetCommand(command string) run {
-	command = strings.ToUpper(command)
-	proc, ok := i.commands[command]
+func (i *Interpreter) DelCommand(name string) {
+	delete(i.commands, name)
+}
+
+func (i *Interpreter) GetCommand(name string) Command {
+	name = strings.ToUpper(name)
+	cmd, ok := i.commands[name]
 	if ok {
-		return proc
+		return cmd
 	}
 	return nil
 }
@@ -223,6 +224,9 @@ func (i *Interpreter) responseLoop() {
 	i.wg.Done()
 }
 
+// handle message requests
+// feed the message to parsers, if no parser was able to parse
+// the request, then parse it as commands
 func (i *Interpreter) handleRequest(req *MessageRequest) {
 	i.Logger().Printf("%s", req)
 
@@ -296,12 +300,12 @@ Found:
 		arguments = arr[1]
 	}
 
-	var cmd run
+	var cmd Command
 
 	cmd = i.GetCommand(keyword)
 	fmt.Println("cmd is", cmd)
 	if cmd != nil {
-		result, err = cmd(req, arguments)
+		result, err = cmd.Run(arguments)
 		if err != nil {
 			i.Logger().Printf("%s error: %s", keyword, err)
 		}

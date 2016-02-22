@@ -18,7 +18,7 @@ const crlf string = "\r\n"
 
 const PING_INTERVAL = 5 * time.Second
 
-type Command struct {
+type IRCCommand struct {
 	cmd, prefix, param string
 }
 
@@ -48,7 +48,7 @@ type IRC struct {
 	cx chan bool
 
 	cMsg  chan string
-	cCmd  chan Command
+	cCmd  chan IRCCommand
 	cxMsg chan bool
 	cxCmd chan bool
 
@@ -94,7 +94,7 @@ func NewIRC(bot *Bot) *IRC {
 	irc.state = Disconnected
 	irc.cx = make(chan bool)
 	irc.cMsg = make(chan string)
-	irc.cCmd = make(chan Command)
+	irc.cCmd = make(chan IRCCommand)
 	irc.cxMsg = make(chan bool)
 	irc.cxCmd = make(chan bool)
 	irc.timer = nil
@@ -457,7 +457,7 @@ func (irc *IRC) messageLoop() {
 }
 
 func (irc *IRC) commandLoop() {
-	var cmd Command
+	var cmd IRCCommand
 	var quit bool
 	for !quit {
 		select {
@@ -557,7 +557,7 @@ func (irc *IRC) onMessage(msg string) {
 		cmd = Numerics[n]
 	}
 	if irc.canHandleCommand(cmd) {
-		irc.cCmd <- Command{cmd, prefix, param}
+		irc.cCmd <- IRCCommand{cmd, prefix, param}
 	} else {
 		fmt.Printf("%s|%s|%s\n", cmd, prefix, param)
 		irc.Logger().Printf("unhandled message %s", msg)
