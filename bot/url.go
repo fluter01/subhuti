@@ -16,12 +16,7 @@ import (
 
 	"github.com/fluter01/lotsawa"
 
-	"github.com/fluter01/paste/bpaste"
-	"github.com/fluter01/paste/codepad"
-	"github.com/fluter01/paste/ideone"
-	"github.com/fluter01/paste/pastebin"
-	"github.com/fluter01/paste/pastie"
-	"github.com/fluter01/paste/sprunge"
+	"github.com/fluter01/paste"
 )
 
 const (
@@ -72,57 +67,49 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		return "", NotParsed
 	}
 
-	var paste bool = false
-	var getID func(string) (string, error)
-	var get func(string) (string, error)
-	switch strings.ToLower(u.Host) {
-	default:
-		if p.i.bot.config.IgnoreURLTitle(req.channel) {
-			p.i.Logger().Printf("Ignoring url title for %s", req.channel)
-			res = ""
-			break
-		}
-		title := p.getTitle(urls)
-		if title == "" {
-			res = ""
-		} else if !req.ischan {
-			res = fmt.Sprintf("Your link: %s", title)
-		} else if req.direct {
-			res = fmt.Sprintf("%s: Your link: %s", req.nick, title)
-		} else {
-			res = fmt.Sprintf("%s's link: %s", req.nick, title)
-		}
+	host := strings.ToLower(u.Host)
+	switch host {
 	case "youtube.com", "www.youtube.com":
 		res = p.parseYoutube(urls)
-	case "pastebin.com", "www.pastebin.com":
-		paste = true
-		getID = pastebin.GetID
-		get = pastebin.Get
-	case "codepad.org":
-		paste = true
-		getID = codepad.GetID
-		get = codepad.Get
-	case "bpaste.net":
-		paste = true
-		getID = bpaste.GetID
-		get = bpaste.Get
-	case "ideone.com":
-		paste = true
-		getID = ideone.GetID
-		get = ideone.Get
-	case "pastie.org":
-		paste = true
-		getID = pastie.GetID
-		get = pastie.Get
-	}
-	if paste {
-		code, compiled := p.parsePaste(urls, getID, get)
-		if code == "" {
+	// handle pastebins
+	default:
+		data, err := paste.Get(urls)
+		if err != nil {
+			if err == paste.NotSupported {
+				p.i.Logger().Printf("Unhandled URL, getting title")
+				if p.i.bot.config.IgnoreURLTitle(req.channel) {
+					p.i.Logger().Printf("Ignoring url title for %s", req.channel)
+					res = ""
+					break
+				}
+				title := p.getTitle(urls)
+				if title == "" {
+					res = ""
+				} else if !req.ischan {
+					res = fmt.Sprintf("Your link: %s", title)
+				} else if req.direct {
+					res = fmt.Sprintf("%s: Your link: %s", req.nick, title)
+				} else {
+					res = fmt.Sprintf("%s's link: %s", req.nick, title)
+				}
+			} else {
+				p.i.Logger().Printf("error get url: %s", err)
+			}
+			break
+		}
+		p.i.Logger().Printf("code paste, compiling")
+		cmplres, issues := p.processCode(data)
+		if cmplres == "" {
 			return "", nil
 		}
-		res = fmt.Sprintf("%s's paste: %s", req.nick, code)
-		if compiled {
+		res = fmt.Sprintf("%s's paste: %s", req.nick, cmplres)
+		if issues {
 			res += fmt.Sprintf(" -- issues found, please address them first!")
+		} else {
+			// do not repaste from sprunge
+			if host == "sprunge.us" {
+				return "", nil
+			}
 		}
 	}
 	return res, nil
@@ -195,41 +182,30 @@ func (p *URLParser) parseYoutube(urls string) string {
 	return ""
 }
 
-func (p *URLParser) parsePaste(urls string, getID func(string) (string, error),
-	get func(string) (string, error)) (string, bool) {
+func (p *URLParser) processCode(code string) (string, bool) {
 	var err error
 	var id string
-	var data string
 	var issues string
 
-	id, err = getID(urls)
-	if err != nil {
-		return "", false
-	}
-	data, err = get(id)
-	if err != nil {
-		return "", false
-	}
-
 	var with_issues bool = false
-	issues, err = p.submitToCompile(data)
+	issues, err = p.submitToCompile(code)
 
 	if err == nil && issues != "" {
 		with_issues = true
 	}
 
 	if !with_issues {
-		id, err = sprunge.Put(data)
+		id, err = paste.Paste(code)
 		if err != nil {
 			return "", false
 		}
 		return id, false
 	}
 
-	data = fmt.Sprintf("%s\n\n"+
+	data := fmt.Sprintf("%s\n\n"+
 		"----------------------------------------------------------------\n"+
-		"%s", data, issues)
-	id, err = sprunge.Put(data)
+		"%s", code, issues)
+	id, err = paste.Paste(data)
 	if err != nil {
 		return "", false
 	}
@@ -242,11 +218,11 @@ func (p *URLParser) submitToCompile(code string) (string, error) {
 
 	var s *lotsawa.CompileServiceStub
 	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.bot.config.CompileServer)
-	defer s.Close()
 	if err != nil {
 		p.i.Logger().Println("Failed to dial rpc server:", err)
 		return "", err
 	}
+	defer s.Close()
 	var arg lotsawa.CompileArgs = lotsawa.CompileArgs{code, "C"}
 	var res lotsawa.CompileReply
 	err = s.Compile(&arg, &res)
