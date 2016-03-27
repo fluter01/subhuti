@@ -53,7 +53,7 @@ func main() {
 		return
 	}
 
-	fmt.Println("Hello gbot")
+	fmt.Println("Hello subhuti")
 	fmt.Println("Running config:", config)
 
 	if !noproxy && config.Proxy != "" {
@@ -62,7 +62,7 @@ func main() {
 
 	var b *bot.Bot
 
-	b = bot.NewBot("Good Bot", config)
+	b = bot.NewBot("GoBot", config)
 	fmt.Println(b)
 
 	b.Start()

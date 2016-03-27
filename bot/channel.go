@@ -38,7 +38,7 @@ func NewChannel(irc *IRC, name string) *Channel {
 	ch := new(Channel)
 	ch.irc = irc
 	ch.name = name
-	ch.logger = NewLogger(
+	ch.logger = NewLoggerFunc(
 		fmt.Sprintf("%s-%s", irc.bot.Name, name))
 	ch.logger.SetFlags(log.LstdFlags)
 	ch.users = make(map[string]Empty)

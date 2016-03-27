@@ -29,8 +29,8 @@ func NewBot(name string, config *BotConfig) *Bot {
 	bot.config = config
 	bot.eventQ = make(chan *Event)
 	bot.exitCh = make(chan bool)
-	bot.Logger = NewLogger(fmt.Sprintf("%s-bot", bot.Name))
-	bot.Logger = NewLogger("stdout")
+	bot.Logger = NewLoggerFunc(fmt.Sprintf("%s/%s-bot",
+		bot.config.LogDir, bot.Name))
 	bot.handlers = make(map[EventType]EventHandlers)
 
 	bot.RegisterEventHandler(Input, bot.handleInput)

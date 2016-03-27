@@ -89,12 +89,12 @@ func NewIRC(bot *Bot, config *IRCConfig) *IRC {
 	irc = new(IRC)
 	irc.bot = bot
 	irc.config = config
-	irc.Logger = NewLogger(bot.Name)
+	irc.Logger = NewLoggerFunc(bot.Name)
 	if irc.bot.config.RawLogging {
-		irc.rawLogger = NewLogger(bot.Name + "-raw")
+		irc.rawLogger = NewLoggerFunc(bot.Name + "-raw")
 		irc.rawLogger.SetFlags(0)
 	} else {
-		irc.rawLogger = NewLogger(bot.Name)
+		irc.rawLogger = NewLoggerFunc(bot.Name)
 	}
 	irc.state = Disconnected
 	irc.cx = make(chan bool)

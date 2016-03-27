@@ -7,7 +7,7 @@ func HandleUserJoin(data interface{}) {
 
 	join = data.(*UserJoinData)
 
-	NewLogger("").Printf("%s joined %s", join.nick, join.channel)
+	NewLoggerFunc("").Printf("%s joined %s", join.nick, join.channel)
 }
 
 func HandleUserPart(data interface{}) {
@@ -15,7 +15,7 @@ func HandleUserPart(data interface{}) {
 
 	part = data.(*UserPartData)
 
-	NewLogger("").Printf("%s parted %s: %s", part.nick, part.channel, part.msg)
+	NewLoggerFunc("").Printf("%s parted %s: %s", part.nick, part.channel, part.msg)
 }
 
 func HandleUserQuit(data interface{}) {
@@ -23,7 +23,7 @@ func HandleUserQuit(data interface{}) {
 
 	quit = data.(*UserQuitData)
 
-	NewLogger("").Printf("%s quited: %s", quit.nick, quit.msg)
+	NewLoggerFunc("").Printf("%s quited: %s", quit.nick, quit.msg)
 }
 
 func HandleUserNick(data interface{}) {
@@ -31,7 +31,7 @@ func HandleUserNick(data interface{}) {
 
 	nick = data.(*UserNickData)
 
-	NewLogger("").Printf("%s changed nick %s", nick.nick, nick.newNick)
+	NewLoggerFunc("").Printf("%s changed nick %s", nick.nick, nick.newNick)
 }
 
 func HandlePong(data interface{}) {
@@ -39,5 +39,5 @@ func HandlePong(data interface{}) {
 
 	pong = data.(*PongData)
 
-	NewLogger("").Printf("pong from %s: %s", pong.from, pong.origin)
+	NewLoggerFunc("").Printf("pong from %s: %s", pong.from, pong.origin)
 }

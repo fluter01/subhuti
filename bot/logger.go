@@ -9,7 +9,9 @@ import (
 	"runtime"
 )
 
-func NewLogger(name string) *log.Logger {
+var NewLoggerFunc = newLogger
+
+func newLogger(name string) *log.Logger {
 	var f io.Writer
 	var err error
 
@@ -24,7 +26,7 @@ func NewLogger(name string) *log.Logger {
 	} else if name == "stderr" {
 		f = os.Stderr
 	} else {
-		f, err = os.OpenFile(name,
+		f, err = os.OpenFile(name+".log",
 			os.O_RDWR|os.O_APPEND|os.O_CREATE|os.O_SYNC,
 			0664)
 	}
@@ -32,4 +34,8 @@ func NewLogger(name string) *log.Logger {
 		panic(err)
 	}
 	return log.New(f, "", log.LstdFlags|log.Lshortfile)
+}
+
+func newTestLogger(name string) *log.Logger {
+	return log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 }

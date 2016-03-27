@@ -9,6 +9,10 @@ import (
 	_ "time"
 )
 
+func init() {
+	NewLoggerFunc = newTestLogger
+}
+
 func TestBot(t *testing.T) {
 	config := &BotConfig{}
 	bot := NewBot("test", config)

@@ -25,7 +25,8 @@ func NewStdin(bot *Bot) *Stdin {
 	stdin = new(Stdin)
 	stdin.bot = bot
 	stdin.fd = os.Stdin
-	stdin.Logger = NewLogger(bot.Name + "-stdin")
+	stdin.Logger = NewLoggerFunc(fmt.Sprintf("%s/%s-stdin",
+		bot.config.LogDir, bot.Name))
 	return stdin
 }
 
