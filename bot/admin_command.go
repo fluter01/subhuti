@@ -18,23 +18,23 @@ func (bot *Bot) DelCommand(cmd string) {
 
 // bot command handlers
 func (bot *Bot) onSave(string) error {
-	return bot.config.Save()
+	return bot.config.Save(bot.config.path)
 }
 
 func (bot *Bot) onShow(string) error {
-	bot.Logger().Println("======== Config: ========")
-	bot.Logger().Printf("%#v\n", bot.config)
-	bot.Logger().Print("=========================")
+	bot.Logger.Println("======== Config: ========")
+	bot.Logger.Printf("%#v\n", bot.config)
+	bot.Logger.Print("=========================")
 	return nil
 }
 
 func (bot *Bot) onStatus(string) error {
 	var mod Module
-	bot.Logger().Print("======== Status: ========")
+	bot.Logger.Print("======== Status: ========")
 	for _, mod = range bot.modules {
-		bot.Logger().Printf("Module %s %s", mod, mod.Status())
+		bot.Logger.Printf("Module %s %s", mod, mod.Status())
 	}
-	bot.Logger().Print("=========================")
+	bot.Logger.Print("=========================")
 	return nil
 }
 
@@ -42,10 +42,10 @@ func (bot *Bot) onExit(string) error {
 	var err error
 	var mod Module
 	for _, mod = range bot.modules {
-		bot.Logger().Printf("Stopping module %s", mod)
+		bot.Logger.Printf("Stopping module %s", mod)
 		err = mod.Stop()
 		if err != nil {
-			bot.Logger().Printf("Stop module %s failed: %s", mod, err)
+			bot.Logger.Printf("Stop module %s failed: %s", mod, err)
 		}
 	}
 	close(bot.eventQ)
@@ -53,15 +53,15 @@ func (bot *Bot) onExit(string) error {
 }
 
 func (bot *Bot) onConnect(string) error {
-	return bot.IRC().connect()
+	return nil
+	//return bot.IRC().connect()
 }
 
 func (bot *Bot) onDisconnect(string) error {
-	bot.IRC().disconnect()
+	//bot.IRC().disconnect()
 	return nil
 }
 
 func (bot *Bot) onReconnect(string) error {
-	bot.IRC().disconnect()
-	return bot.IRC().connect()
+	return nil
 }

@@ -2,6 +2,8 @@
 
 package bot
 
+import "log"
+
 type Module interface {
 	Init() error
 	Start() error
@@ -9,6 +11,9 @@ type Module interface {
 	Loop()
 	Run()
 	Status() string
+}
 
-	Logger() Logger
+type BaseModule struct {
+	Name   string
+	Logger *log.Logger
 }

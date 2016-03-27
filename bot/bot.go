@@ -9,25 +9,15 @@ import (
 	"unicode"
 )
 
-const (
-	MOD_IRC int = iota
-	MOD_STDIN
-	//	MOD_NET
-	MOD_INTERPRETER
-
-	// count
-	MOD_LAST
-)
-
 type Bot struct {
-	name   string
+	BaseModule
+
 	config *BotConfig
 
 	modules  []Module
 	handlers []EventHandlers
 	cmdMap   CmdMap
 	start    time.Time
-	logger   Logger
 	eventQ   chan *Event
 	quit     chan bool
 }
@@ -37,14 +27,17 @@ func NewBot(name string, config *BotConfig) *Bot {
 
 	bot = new(Bot)
 	bot.start = time.Now()
-	bot.name = name
+	bot.Name = name
 	bot.config = config
 	bot.quit = make(chan bool)
 
-	bot.modules = make([]Module, MOD_LAST)
-	bot.modules[MOD_IRC] = NewIRC(bot)
-	bot.modules[MOD_STDIN] = NewStdin(bot)
-	bot.modules[MOD_INTERPRETER] = NewInterpreter(bot)
+	bot.modules = []Module{
+		NewStdin(bot),
+	}
+
+	for i := range config.IRC {
+		bot.modules = append(bot.modules, NewIRC(bot, config.IRC[i]))
+	}
 
 	bot.handlers = make([]EventHandlers, EventCount)
 	bot.RegisterEventHandler(UserInput, bot.handleUserInput)
@@ -68,33 +61,33 @@ func NewBot(name string, config *BotConfig) *Bot {
 
 	bot.eventQ = make(chan *Event)
 
-	bot.logger = NewStdFileLogger(bot, "bot")
+	bot.Logger = NewLogger(fmt.Sprintf("%s-bot", bot.Name))
 
 	return bot
 }
 
 func (bot *Bot) String() string {
-	return fmt.Sprintf("Bot %s: %s", bot.name, bot.config)
+	return fmt.Sprintf("Bot %s: %s", bot.Name, bot.config)
 }
 
 func (bot *Bot) Start() {
 	var err error
-	bot.Logger().Printf("bot %s starting", bot.name)
+	bot.Logger.Printf("bot %s starting", bot.Name)
 
 	var mod Module
 	for _, mod = range bot.modules {
 		err = mod.Init()
 		if err != nil {
-			bot.Logger().Printf("module %s init failed: %s", mod, err)
+			bot.Logger.Printf("module %s init failed: %s", mod, err)
 			return
 		}
 		err = mod.Start()
 		if err != nil {
-			bot.Logger().Printf("module %s start failed: %s", mod, err)
+			bot.Logger.Printf("module %s start failed: %s", mod, err)
 			return
 		}
 		mod.Run()
-		bot.Logger().Printf("Module %s running", mod)
+		bot.Logger.Printf("Module %s running", mod)
 	}
 
 	bot.Loop()
@@ -107,25 +100,11 @@ func (bot *Bot) Loop() {
 		if event == nil {
 			break
 		}
-		//bot.Logger().Printf("Event %s", event)
+		//bot.logger.Printf("Event %s", event)
 		bot.handleEvent(event)
 		//bot.handlers[event.evt](event.data)
 	}
-	bot.Logger().Print("Bot loop exiting")
-}
-
-func (bot *Bot) IRC() *IRC {
-	mod := bot.modules[MOD_IRC]
-	return mod.(*IRC)
-}
-
-func (bot *Bot) Interpreter() *Interpreter {
-	mod := bot.modules[MOD_INTERPRETER]
-	return mod.(*Interpreter)
-}
-
-func (bot *Bot) Logger() Logger {
-	return bot.logger
+	bot.Logger.Print("Bot loop exiting")
 }
 
 // events
@@ -136,14 +115,14 @@ func (bot *Bot) handleEvent(event *Event) {
 	if event.evt < EventCount {
 		hs = bot.handlers[event.evt]
 		if hs == nil {
-			bot.Logger().Printf("BUG: %s unhandled", event.evt)
+			bot.Logger.Printf("BUG: %s unhandled", event.evt)
 			return
 		}
 		for _, h = range hs {
 			h(event.data)
 		}
 	} else {
-		bot.Logger().Println("Unknown event type:", event.evt)
+		bot.Logger.Println("Unknown event type:", event.evt)
 	}
 }
 
@@ -170,13 +149,14 @@ func (bot *Bot) handleUserInput(data interface{}) {
 	first = input[0]
 
 	if unicode.IsSpace(rune(input[1])) {
-		bot.Logger().Print("Invalid command, space after trigger")
+		bot.Logger.Print("Invalid command, space after trigger")
 		return
 	}
-	if first == bot.config.BotTrigger {
+	// TODO: single command engine
+	if first == bot.config.Trigger {
 		bot.handleCommand(input[1:])
-	} else if first == bot.config.IRCTrigger {
-		bot.IRC().handleCommand(input[1:])
+	} else if first == bot.config.Trigger {
+		//		bot.IRC().handleCommand(input[1:])
 	} else {
 		fmt.Println("Unknow commands")
 	}
@@ -185,13 +165,13 @@ func (bot *Bot) handleUserInput(data interface{}) {
 func (bot *Bot) handlePrivateMessage(data interface{}) {
 	privMsgData := data.(*PrivateMessageData)
 	text := privMsgData.text
-	trigger := bot.config.Trigger("")
+	trigger := bot.config.GetIRC("TODO").GetTrigger("")
 
 	if !strings.HasPrefix(text, trigger) {
 		text = fmt.Sprintf("%s%s", trigger, text)
 	}
 	req := NewMessageRequest(
-		bot.IRC(),
+		nil,
 		false,
 		privMsgData.from,
 		privMsgData.nick,
@@ -199,14 +179,14 @@ func (bot *Bot) handlePrivateMessage(data interface{}) {
 		privMsgData.host,
 		"",
 		text)
-	bot.Interpreter().RequestChan() <- req
+	req.irc.interpreter.RequestChan() <- req
 }
 
 func (bot *Bot) handleChannelMessage(data interface{}) {
 	chanMsgData := data.(*ChannelMessageData)
 
 	req := NewMessageRequest(
-		bot.IRC(),
+		nil,
 		true,
 		chanMsgData.from,
 		chanMsgData.nick,
@@ -214,7 +194,7 @@ func (bot *Bot) handleChannelMessage(data interface{}) {
 		chanMsgData.host,
 		chanMsgData.channel,
 		chanMsgData.text)
-	bot.Interpreter().RequestChan() <- req
+	req.irc.interpreter.RequestChan() <- req
 }
 
 func (bot *Bot) handleCommand(cmd string) {
@@ -234,13 +214,13 @@ func (bot *Bot) handleCommand(cmd string) {
 	}
 	f, ok = bot.cmdMap[cmd]
 	if !ok {
-		bot.Logger().Print("Unhandled command: ", cmd)
+		bot.Logger.Print("Unhandled command: ", cmd)
 		return
 	}
 
-	bot.Logger().Printf("Bot command %s", cmd)
+	bot.Logger.Printf("Bot command %s", cmd)
 	err = f(data)
 	if err != nil {
-		bot.Logger().Printf("Failed to handle command %s: %s", cmd, err)
+		bot.Logger.Printf("Failed to handle command %s: %s", cmd, err)
 	}
 }

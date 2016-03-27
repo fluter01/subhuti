@@ -108,7 +108,7 @@ func (irc *IRC) onCtcp(target, msg string) {
 
 	switch CTCP(typ) {
 	default:
-		irc.Logger().Printf("Unknow CTCP requested by %s: %s",
+		irc.Logger.Printf("Unknow CTCP requested by %s: %s",
 			target, msg)
 	case FINGER:
 		irc.onCtcp_Finger(target)
@@ -154,8 +154,8 @@ func (irc *IRC) onCtcp_Source(target string) {
 
 func (irc *IRC) onCtcp_Userinfo(target string) {
 	reply := fmt.Sprintf("%s (%s)",
-		irc.bot.config.BotNick,
-		irc.bot.config.RealName)
+		irc.config.BotNick,
+		irc.config.RealName)
 	irc.CtcpReply(USERINFO, target, reply)
 }
 

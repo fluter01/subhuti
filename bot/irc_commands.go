@@ -79,6 +79,7 @@ func (irc *IRC) Invite(nick, channel string) error {
 	msg := fmt.Sprintf("INVITE %s %s", nick, channel)
 	return irc.sendMsg(msg)
 }
+
 // kick
 
 func (irc *IRC) Privmsg(to, msg string) error {
@@ -88,7 +89,7 @@ func (irc *IRC) Privmsg(to, msg string) error {
 		var ch *Channel
 
 		ch = irc.GetChannel(to)
-		ch.onPrivmsg(irc.bot.config.BotNick, msg)
+		ch.onPrivmsg(irc.config.BotNick, msg)
 	}
 	line = fmt.Sprintf("PRIVMSG %s :%s", to, msg)
 

@@ -10,36 +10,33 @@ type EventType int
 
 const (
 	UserInput EventType = iota
-
 	UserJoin
-
 	UserPart
-
 	UserQuit
-
 	UserNick
-
 	Pong
-
 	PrivateMessage
-
 	ChannelMessage
-
 	Disconnect
-
 	EventCount
 )
 
-var EventNames [EventCount]string = [...]string{
-	"UserInput",
-	"UserJoin",
-	"UserPart",
-	"UserQuit",
-	"UserNick",
-	"Pong",
-	"PrivateMessage",
-	"ChannelMessage",
-	"Disconnect",
+func (evt EventType) String() string {
+	var eventNames [EventCount]string = [...]string{
+		"UserInput",
+		"UserJoin",
+		"UserPart",
+		"UserQuit",
+		"UserNick",
+		"Pong",
+		"PrivateMessage",
+		"ChannelMessage",
+		"Disconnect",
+	}
+	if evt < EventCount {
+		return eventNames[evt]
+	}
+	return "Unknown"
 }
 
 type Event struct {
@@ -49,13 +46,6 @@ type Event struct {
 
 type EventHandler func(interface{})
 type EventHandlers []EventHandler
-
-func (evt EventType) String() string {
-	if evt < EventCount {
-		return EventNames[evt]
-	}
-	return "Unknown"
-}
 
 func (event Event) String() string {
 	return fmt.Sprintf("Type %s, data [%s]",

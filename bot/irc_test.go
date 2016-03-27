@@ -39,7 +39,7 @@ func TestTgtRe(t *testing.T) {
 func getBot() *Bot {
 	fmt.Println(os.Getwd())
 	fmt.Scan()
-	config := &BotConfig{Name: "TESTCONFIG", LogDir: "..\\log"}
+	config := &BotConfig{LogDir: "..\\log"}
 	bot := NewBot("Test Bot", config)
 	return bot
 }

@@ -4,7 +4,7 @@ package bot
 
 import (
 	"fmt"
-	stdLog "log"
+	"log"
 	"strings"
 )
 
@@ -31,16 +31,16 @@ type Channel struct {
 	nop    int
 	nvoice int
 
-	logger Logger
+	logger *log.Logger
 }
 
 func NewChannel(irc *IRC, name string) *Channel {
 	ch := new(Channel)
 	ch.irc = irc
 	ch.name = name
-	ch.logger = NewFileLogger(irc.bot,
-		fmt.Sprintf("%s-%s", irc.bot.config.Name, name))
-	ch.logger.SetFlags(stdLog.LstdFlags)
+	ch.logger = NewLogger(
+		fmt.Sprintf("%s-%s", irc.bot.Name, name))
+	ch.logger.SetFlags(log.LstdFlags)
 	ch.users = make(map[string]Empty)
 
 	return ch

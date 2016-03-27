@@ -2,63 +2,65 @@
 
 package bot
 
-import "encoding/json"
-import "fmt"
-import "os"
-import "bytes"
-import "log"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+)
 
-type BotConfig struct {
-	path            string
-	Proxy           string
+const (
+	DefaultChannelTrigger = '!'
+)
+
+type ChannelConfig struct {
+	Name           string
+	Trigger        byte
+	IgnoreURLTitle bool
+}
+
+type IRCConfig struct {
 	Name            string
-	IrcServer       string
+	Server          string
 	Port            int
 	Ssl             bool
 	BotNick         string
 	Username        string
 	RealName        string
 	Identify_passwd string
+	Trigger         byte
+	AutoConnect     bool
+	Channels        []*ChannelConfig
+}
 
-	HomeDir string
-	LogDir  string
-
-	IRCTrigger     byte
-	ChannelTrigger byte
-	BotTrigger     byte
-
-	AutoConnect bool
-
-	Channels []struct {
-		Name           string
-		Trigger        byte
-		IgnoreURLTitle bool
-	}
-
-	RawLogging bool
-
+type BotConfig struct {
+	path          string
+	Proxy         string
+	HomeDir       string
+	LogDir        string
+	RawLogging    bool
+	Trigger       byte
 	CompileServer string
+	IRC           []*IRCConfig
 }
 
 func (config *BotConfig) String() string {
-	return fmt.Sprintf("%s:%d %s %s %s",
-		config.IrcServer,
-		config.Port,
-		config.BotNick,
-		config.Username,
-		config.RealName)
+	return fmt.Sprintf("%s:%s",
+		config.path,
+		config.IRC)
 }
 
-func NewConfig(path string) *BotConfig {
-	return &BotConfig{path: path}
+func NewConfig() *BotConfig {
+	return new(BotConfig)
 }
 
-func (config *BotConfig) Save() error {
-	return SaveToFile(config, config.path)
+func (config *BotConfig) Save(path string) error {
+	return SaveToFile(config, path)
 }
 
-func (config *BotConfig) Load() error {
-	nc, err := LoadFromFile(config.path)
+func (config *BotConfig) Load(path string) error {
+	nc, err := LoadFromFile(path)
 	if err != nil {
 		return err
 	}
@@ -127,7 +129,16 @@ func SaveToFile(config *BotConfig, path string) error {
 	return nil
 }
 
-func (config *BotConfig) Trigger(channel string) string {
+func (config *BotConfig) GetIRC(server string) *IRCConfig {
+	for i := range config.IRC {
+		if config.IRC[i].Server == server {
+			return config.IRC[i]
+		}
+	}
+	return nil
+}
+
+func (config *IRCConfig) GetTrigger(channel string) string {
 	var c byte
 
 	for _, ch := range config.Channels {
@@ -137,12 +148,15 @@ func (config *BotConfig) Trigger(channel string) string {
 		}
 	}
 	if c == 0 {
-		c = config.ChannelTrigger
+		c = config.Trigger
+	}
+	if c == 0 {
+		c = DefaultChannelTrigger
 	}
 	return string(c)
 }
 
-func (config *BotConfig) IgnoreURLTitle(channel string) bool {
+func (config *IRCConfig) IgnoreURLTitle(channel string) bool {
 	var ignore bool = false
 
 	for _, ch := range config.Channels {

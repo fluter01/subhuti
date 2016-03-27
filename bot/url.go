@@ -53,7 +53,7 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		return "", NotParsed
 	}
 
-	p.i.Logger().Printf("URL parser processing")
+	p.i.Logger.Printf("URL parser processing")
 	var res string
 
 	res = fmt.Sprintf("URL is %s", urls)
@@ -63,7 +63,7 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 
 	u, err = url.Parse(urls)
 	if err != nil {
-		p.i.Logger().Printf("Invalid URL: %s", urls)
+		p.i.Logger.Printf("Invalid URL: %s", urls)
 		return "", NotParsed
 	}
 
@@ -76,9 +76,9 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		data, err := paste.Get(urls)
 		if err != nil {
 			if err == paste.NotSupported {
-				p.i.Logger().Printf("Unhandled URL, getting title")
-				if p.i.bot.config.IgnoreURLTitle(req.channel) {
-					p.i.Logger().Printf("Ignoring url title for %s", req.channel)
+				p.i.Logger.Printf("Unhandled URL, getting title")
+				if p.i.irc.config.IgnoreURLTitle(req.channel) {
+					p.i.Logger.Printf("Ignoring url title for %s", req.channel)
 					res = ""
 					break
 				}
@@ -93,11 +93,11 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 					res = fmt.Sprintf("%s's link: %s", req.nick, title)
 				}
 			} else {
-				p.i.Logger().Printf("error get url: %s", err)
+				p.i.Logger.Printf("error get url: %s", err)
 			}
 			break
 		}
-		p.i.Logger().Printf("code paste, compiling")
+		p.i.Logger.Printf("code paste, compiling")
 		cmplres, issues := p.processCode(data)
 		if cmplres == "" {
 			return "", nil
@@ -124,11 +124,11 @@ func (p *URLParser) getTitle(urls string) string {
 	// only proceed with text documents
 	resp, err = p.client.Head(urls)
 	if err != nil {
-		p.i.Logger().Printf("Http Head error: %s", err)
+		p.i.Logger.Printf("Http Head error: %s", err)
 		return result
 	}
 	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/") {
-		p.i.Logger().Println("Not text document, skipping download")
+		p.i.Logger.Println("Not text document, skipping download")
 		// get file name if present
 		disp := resp.Header.Get("Content-Disposition")
 		m := fnameRe.FindStringSubmatch(disp)
@@ -140,7 +140,7 @@ func (p *URLParser) getTitle(urls string) string {
 
 	resp, err = p.client.Get(urls)
 	if err != nil {
-		p.i.Logger().Printf("Http Get error: %s", err)
+		p.i.Logger.Printf("Http Get error: %s", err)
 		return result
 	}
 	defer resp.Body.Close()
@@ -172,7 +172,7 @@ func (p *URLParser) getTitle(urls string) string {
 	// remove ctcp SOH
 	result = strings.Replace(result, "\001", "", -1)
 
-	p.i.Logger().Println("Returning title:", result)
+	p.i.Logger.Println("Returning title:", result)
 
 	return result
 }
@@ -219,7 +219,7 @@ func (p *URLParser) submitToCompile(code string) (string, error) {
 	var s *lotsawa.CompileServiceStub
 	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.bot.config.CompileServer)
 	if err != nil {
-		p.i.Logger().Println("Failed to dial rpc server:", err)
+		p.i.Logger.Println("Failed to dial rpc server:", err)
 		return "", err
 	}
 	defer s.Close()
@@ -228,7 +228,7 @@ func (p *URLParser) submitToCompile(code string) (string, error) {
 	err = s.Compile(&arg, &res)
 
 	if err != nil {
-		p.i.Logger().Println("Failed to call rpc service:", err)
+		p.i.Logger.Println("Failed to call rpc service:", err)
 		return "", err
 	}
 

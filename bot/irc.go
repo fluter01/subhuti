@@ -5,6 +5,7 @@ package bot
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"regexp"
 	"strconv"
@@ -17,6 +18,24 @@ const lf byte = '\n'
 const crlf string = "\r\n"
 
 const PING_INTERVAL = 5 * time.Second
+
+var (
+	msgRe     *regexp.Regexp
+	nickRe    *regexp.Regexp
+	rpl_002Re *regexp.Regexp
+)
+
+const (
+	msgPtn     = "^(:[^ \000]+ )?([[:alpha:]]+|[[:digit:]]{3}) (.*)$"
+	tgtPtn     = "^([A-Za-z\\[\\]\\\\`_\\^{|}][A-Za-z0-9\\[\\]\\\\`_\\^{|}-]{0,15})!([^ @\000]+)@([a-zA-Z0-9:/.-]*)$"
+	rpl_002Ptn = "Your host is ([a-zA-Z0-9.-]*)(\\[[0-9./]*\\])?, running version (.*)"
+)
+
+func init() {
+	msgRe = regexp.MustCompile(msgPtn)
+	nickRe = regexp.MustCompile(tgtPtn)
+	rpl_002Re = regexp.MustCompile(rpl_002Ptn)
+}
 
 type IRCCommand struct {
 	cmd, prefix, param string
@@ -33,10 +52,11 @@ type ServerInfo struct {
 }
 
 type IRC struct {
-	Module
+	BaseModule
+
 	bot       *Bot
-	logger    Logger
-	rawLogger Logger
+	config    *IRCConfig
+	rawLogger *log.Logger
 
 	host string
 	mode string
@@ -60,36 +80,21 @@ type IRC struct {
 	handlers map[string]CommandHandler
 
 	channels map[string]*Channel
+
+	interpreter Interpreter
 }
 
-var (
-	msgRe     *regexp.Regexp
-	nickRe    *regexp.Regexp
-	rpl_002Re *regexp.Regexp
-)
-
-const (
-	msgPtn     = "^(:[^ \000]+ )?([[:alpha:]]+|[[:digit:]]{3}) (.*)$"
-	tgtPtn     = "^([A-Za-z\\[\\]\\\\`_\\^{|}][A-Za-z0-9\\[\\]\\\\`_\\^{|}-]{0,15})!([^ @\000]+)@([a-zA-Z0-9:/.-]*)$"
-	rpl_002Ptn = "Your host is ([a-zA-Z0-9.-]*)(\\[[0-9./]*\\])?, running version (.*)"
-)
-
-func init() {
-	msgRe = regexp.MustCompile(msgPtn)
-	nickRe = regexp.MustCompile(tgtPtn)
-	rpl_002Re = regexp.MustCompile(rpl_002Ptn)
-}
-
-func NewIRC(bot *Bot) *IRC {
+func NewIRC(bot *Bot, config *IRCConfig) *IRC {
 	var irc *IRC
 	irc = new(IRC)
 	irc.bot = bot
-	irc.logger = NewStdFileLogger(bot, bot.config.Name)
+	irc.config = config
+	irc.Logger = NewLogger(bot.Name)
 	if irc.bot.config.RawLogging {
-		irc.rawLogger = NewFileLogger(bot, bot.config.Name+"-raw")
+		irc.rawLogger = NewLogger(bot.Name + "-raw")
 		irc.rawLogger.SetFlags(0)
 	} else {
-		irc.rawLogger = NewNopLogger(bot, bot.config.Name)
+		irc.rawLogger = NewLogger(bot.Name)
 	}
 	irc.state = Disconnected
 	irc.cx = make(chan bool)
@@ -173,15 +178,15 @@ func (irc *IRC) String() string {
 // Module interface
 
 func (irc *IRC) Init() error {
-	irc.Logger().Printf("Initializing module %s", irc)
+	irc.Logger.Printf("Initializing module %s", irc)
 	irc.state = Disconnected
 	return nil
 }
 
 func (irc *IRC) Start() error {
-	irc.Logger().Printf("Starting module %s", irc)
+	irc.Logger.Printf("Starting module %s", irc)
 
-	if irc.bot.config.AutoConnect {
+	if irc.config.AutoConnect {
 		return irc.connect()
 	}
 
@@ -210,8 +215,8 @@ func (irc *IRC) Stop() error {
 	}
 	irc.cxMsg <- true
 	irc.cxCmd <- true
-	irc.Logger().Println("Message loop finished")
-	irc.Logger().Println("Command loop finished")
+	irc.Logger.Println("Message loop finished")
+	irc.Logger.Println("Command loop finished")
 
 	close(irc.cxMsg)
 	close(irc.cxCmd)
@@ -220,11 +225,7 @@ func (irc *IRC) Stop() error {
 	return nil
 }
 
-func (irc *IRC) Logger() Logger {
-	return irc.logger
-}
-
-func (irc *IRC) RawLogger() Logger {
+func (irc *IRC) RawLogger() *log.Logger {
 	return irc.rawLogger
 }
 
@@ -241,9 +242,9 @@ func (irc *IRC) disconnect() {
 		}
 		irc.conn = nil
 		irc.state = Disconnected
-		irc.Logger().Println("IRC disconnected")
+		irc.Logger.Println("IRC disconnected")
 	} else {
-		irc.Logger().Println("IRC already disconnected")
+		irc.Logger.Println("IRC already disconnected")
 	}
 }
 
@@ -254,24 +255,24 @@ func (irc *IRC) connect() error {
 	var tcpConn *net.TCPConn
 
 	addr = fmt.Sprintf("%s:%d",
-		irc.bot.config.IrcServer,
-		irc.bot.config.Port)
-	irc.Logger().Printf("Connecting to IRC server %s", addr)
+		irc.config.Server,
+		irc.config.Port)
+	irc.Logger.Printf("Connecting to IRC server %s", addr)
 	raddr, err = net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		irc.Logger().Printf("Failed to resolve irc server %s", addr)
-		irc.Logger().Println(err)
+		irc.Logger.Printf("Failed to resolve irc server %s", addr)
+		irc.Logger.Println(err)
 		return err
 	}
 
 	tcpConn, err = net.DialTCP("tcp", nil, raddr)
 	if err != nil {
-		irc.Logger().Printf("Failed to connect to irc server: %s", err)
+		irc.Logger.Printf("Failed to connect to irc server: %s", err)
 		return err
 	}
 	irc.conn = tcpConn
-	if irc.bot.config.Ssl {
-		irc.Logger().Println("Connecting using tls")
+	if irc.config.Ssl {
+		irc.Logger.Println("Connecting using tls")
 		var tlsConn *tls.Conn
 		var tlsConfig tls.Config
 
@@ -281,44 +282,44 @@ func (irc *IRC) connect() error {
 		//  conn, err = tls.Dial("tcp", addr, &tlsConfig)
 		err = tlsConn.Handshake()
 		if err != nil {
-			irc.Logger().Printf("Failed to run tls handshake: %s", err)
+			irc.Logger.Printf("Failed to run tls handshake: %s", err)
 			return err
 		}
 		// fmt.Println(tlsConn)
 		state := tlsConn.ConnectionState()
-		irc.Logger().Printf("Version %X Cipher %X",
+		irc.Logger.Printf("Version %X Cipher %X",
 			state.Version,
 			state.CipherSuite)
-		irc.Logger().Printf("receiving %d certificates",
+		irc.Logger.Printf("receiving %d certificates",
 			len(state.PeerCertificates))
 		for i, cert := range state.PeerCertificates {
-			irc.Logger().Printf("certificate %d: %s", i, dumpCert(cert))
+			irc.Logger.Printf("certificate %d: %s", i, dumpCert(cert))
 		}
 		// fmt.Println("ct", tlsConn.ConnectionState().PeerCertificates)
 		irc.conn = tlsConn
 	}
 
-	irc.Logger().Printf("Connected %s <--> %s",
+	irc.Logger.Printf("Connected %s <--> %s",
 		irc.conn.LocalAddr(), irc.conn.RemoteAddr())
 	irc.state = Connected
-	irc.Logger().Println("IRC connected")
+	irc.Logger.Println("IRC connected")
 
 	err = irc.register()
 	if err != nil {
-		irc.Logger().Println("Failed to register to server")
+		irc.Logger.Println("Failed to register to server")
 		return err
 	}
 	irc.state = Identified
-	irc.Logger().Println("IRC regiested")
+	irc.Logger.Println("IRC regiested")
 
 	err = irc.joinChannels()
 	if err != nil {
-		irc.Logger().Println("Failed to join pre-configured channels")
+		irc.Logger.Println("Failed to join pre-configured channels")
 		return err
 	}
 
 	irc.timer = time.NewTicker(PING_INTERVAL)
-	irc.Logger().Printf("IRC timer started")
+	irc.Logger.Printf("IRC timer started")
 
 	go irc.runTimer()
 	go irc.readLoop()
@@ -330,17 +331,17 @@ func (irc *IRC) connect() error {
 // IRC internal communications
 func (irc *IRC) register() error {
 	var err error
-	err = irc.sendMsg("PASS " + irc.bot.config.Identify_passwd)
+	err = irc.sendMsg("PASS " + irc.config.Identify_passwd)
 	if err != nil {
 		return err
 	}
-	err = irc.sendMsg("NICK " + irc.bot.config.BotNick)
+	err = irc.sendMsg("NICK " + irc.config.BotNick)
 	if err != nil {
 		return err
 	}
 	err = irc.sendMsg(fmt.Sprintf("USER %s %d * :%s",
-		irc.bot.config.Username, 8,
-		irc.bot.config.RealName))
+		irc.config.Username, 8,
+		irc.config.RealName))
 	if err != nil {
 		return err
 	}
@@ -349,15 +350,15 @@ func (irc *IRC) register() error {
 
 func (irc *IRC) joinChannels() error {
 	var err error
-	irc.bot.config.ChannelTrigger = '?'
-	for _, ch := range irc.bot.config.Channels {
+	irc.config.Trigger = '?'
+	for _, ch := range irc.config.Channels {
 		err = irc.Join(ch.Name)
 		if err != nil {
-			irc.Logger().Printf("Failed to join %s: %s",
+			irc.Logger.Printf("Failed to join %s: %s",
 				ch.Name, err)
 			return err
 		} else {
-			irc.Logger().Printf("Joined %s",
+			irc.Logger.Printf("Joined %s",
 				ch.Name)
 		}
 	}
@@ -387,7 +388,7 @@ func (irc *IRC) readLoop() {
 		t = time.Now()
 		irc.RawLogger().Printf("%s\t%s\t%s\t%s",
 			dateTime(t),
-			irc.bot.config.Name,
+			irc.config.Name,
 			IN,
 			string(msg[:n]))
 		if n > 0 {
@@ -414,17 +415,17 @@ func (irc *IRC) readLoop() {
 			}
 		}
 		if err != nil {
-			irc.Logger().Print("Read error:", err)
+			irc.Logger.Print("Read error:", err)
 			irc.disconnect()
 			// network caused disconnect, reconnecting
 			defer func() {
-				irc.Logger().Print("Reconnecting to server")
+				irc.Logger.Print("Reconnecting to server")
 				irc.connect()
 			}()
 			break
 		}
 	}
-	irc.Logger().Print("IRC read loop done")
+	irc.Logger.Print("IRC read loop done")
 }
 
 func (irc *IRC) runTimer() {
@@ -433,13 +434,13 @@ func (irc *IRC) runTimer() {
 	for !stop {
 		select {
 		case <-irc.timer.C:
-			//irc.Logger().Printf("::::tick %s", t)
+			//irc.Logger.Printf("::::tick %s", t)
 			//irc.Ping(irc.server.host)
 		case stop = <-irc.cxTimer:
 			break
 		}
 	}
-	irc.Logger().Printf("IRC timer stopped")
+	irc.Logger.Printf("IRC timer stopped")
 }
 
 func (irc *IRC) messageLoop() {
@@ -453,7 +454,7 @@ func (irc *IRC) messageLoop() {
 			break
 		}
 	}
-	irc.Logger().Print("IRC message loop done")
+	irc.Logger.Print("IRC message loop done")
 }
 
 func (irc *IRC) commandLoop() {
@@ -467,7 +468,7 @@ func (irc *IRC) commandLoop() {
 			break
 		}
 	}
-	irc.Logger().Print("IRC command loop done")
+	irc.Logger.Print("IRC command loop done")
 }
 
 func (irc *IRC) sendMsg(msg string) error {
@@ -486,8 +487,8 @@ func (irc *IRC) sendMsg(msg string) error {
 	for sent < total {
 		n, err = irc.conn.Write(data[sent:])
 		if err != nil {
-			irc.Logger().Printf("Failed to send message: %s", msg)
-			irc.Logger().Println(err)
+			irc.Logger.Printf("Failed to send message: %s", msg)
+			irc.Logger.Println(err)
 			irc.disconnect()
 			return err
 		}
@@ -497,7 +498,7 @@ func (irc *IRC) sendMsg(msg string) error {
 	t := time.Now()
 	irc.RawLogger().Printf("%s\t%s\t%s\t%s",
 		dateTime(t),
-		irc.bot.config.Name,
+		irc.config.Name,
 		OUT,
 		msg)
 	return nil
@@ -507,7 +508,7 @@ func (irc *IRC) sendMsg(msg string) error {
 
 // bot command to irc, triggered by bot event
 func (irc *IRC) handleCommand(cmd string) {
-	irc.Logger().Println("IRC command", cmd)
+	irc.Logger.Println("IRC command", cmd)
 	cmd = strings.TrimSpace(cmd)
 	args := strings.Split(cmd, " ")
 
@@ -541,7 +542,7 @@ func (irc *IRC) onMessage(msg string) {
 
 	m = msgRe.FindStringSubmatch(msg)
 	if m == nil {
-		irc.Logger().Printf("Funky message found: %s", msg)
+		irc.Logger.Printf("Funky message found: %s", msg)
 		return
 	}
 	prefix, cmd, param := m[1], m[2], m[3]
@@ -560,7 +561,7 @@ func (irc *IRC) onMessage(msg string) {
 		irc.cCmd <- IRCCommand{cmd, prefix, param}
 	} else {
 		fmt.Printf("%s|%s|%s\n", cmd, prefix, param)
-		irc.Logger().Printf("unhandled message %s", msg)
+		irc.Logger.Printf("unhandled message %s", msg)
 	}
 }
 
@@ -571,7 +572,7 @@ func (irc *IRC) RemoveHandler(cmd string) {
 }
 
 func (irc *IRC) onCommand(cmd, prefix, param string) {
-	//	irc.Logger().Printf("handling command %s", cmd)
+	//	irc.Logger.Printf("handling command %s", cmd)
 	var proc CommandHandler
 
 	proc = irc.handlers[cmd]

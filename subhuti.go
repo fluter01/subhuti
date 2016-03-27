@@ -46,8 +46,8 @@ func main() {
 	var err error
 	var config *bot.BotConfig
 
-	config = bot.NewConfig(cfg)
-	err = config.Load()
+	config = bot.NewConfig()
+	err = config.Load(cfg)
 	if err != nil {
 		fmt.Println("config error")
 		return

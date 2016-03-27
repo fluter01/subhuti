@@ -73,7 +73,10 @@ type Parser interface {
 }
 
 type Interpreter struct {
+	BaseModule
+
 	bot   *Bot
+	irc   *IRC
 	state ModState
 
 	cReq  chan *MessageRequest
@@ -106,8 +109,8 @@ func NewInterpreter(bot *Bot) *Interpreter {
 	i.parsers = make(map[string]Parser)
 	i.AddParser("URL", NewURLParser(i))
 
-	i.nickRe = regexp.MustCompile(
-		fmt.Sprintf("\\b%s\\b", bot.config.BotNick))
+	//i.nickRe = regexp.MustCompile(
+	//	fmt.Sprintf("\\b%s\\b", bot.config.BotNick))
 	return i
 }
 
@@ -116,13 +119,13 @@ func (i *Interpreter) String() string {
 }
 
 func (i *Interpreter) Init() error {
-	i.Logger().Printf("Initializing module %s", i)
+	i.Logger.Printf("Initializing module %s", i)
 	i.state = Initialized
 	return nil
 }
 
 func (i *Interpreter) Start() error {
-	i.Logger().Printf("Starting module %s", i)
+	i.Logger.Printf("Starting module %s", i)
 	i.state = Running
 	return nil
 }
@@ -148,10 +151,6 @@ func (i *Interpreter) Run() {
 
 func (i *Interpreter) Status() string {
 	return fmt.Sprintf("%s", i.state)
-}
-
-func (i *Interpreter) Logger() Logger {
-	return i.bot.Logger()
 }
 
 // Parsers
@@ -228,7 +227,7 @@ func (i *Interpreter) responseLoop() {
 // feed the message to parsers, if no parser was able to parse
 // the request, then parse it as commands
 func (i *Interpreter) handleRequest(req *MessageRequest) {
-	i.Logger().Printf("%s", req)
+	i.Logger.Printf("%s", req)
 
 	var result string
 	var err error
@@ -252,14 +251,14 @@ func (i *Interpreter) handleRequest(req *MessageRequest) {
 
 	text, chn = req.text, req.channel
 
-	trigger = i.bot.config.Trigger(chn)
+	trigger = i.irc.config.GetTrigger(chn)
 	trigger = regexp.QuoteMeta(trigger)
 	// ?version
 	msgPtn1 := fmt.Sprintf("^%s(.*)$", trigger)
 	// me: version
-	msgPtn2 := fmt.Sprintf("^%s[:,;.]?(?:\\s+)?(.*)$", i.bot.config.BotNick)
+	msgPtn2 := fmt.Sprintf("^%s[:,;.]?(?:\\s+)?(.*)$", i.irc.config.BotNick)
 	// version, me
-	msgPtn3 := fmt.Sprintf("^(.*)(?:[,.:;]) %s$", i.bot.config.BotNick)
+	msgPtn3 := fmt.Sprintf("^(.*)(?:[,.:;]) %s$", i.irc.config.BotNick)
 	// fmt.Println(msgPtn1)
 	// fmt.Println(msgPtn2)
 	// fmt.Println(msgPtn3)
@@ -307,10 +306,10 @@ Found:
 	if cmd != nil {
 		result, err = cmd.Run(arguments)
 		if err != nil {
-			i.Logger().Printf("%s error: %s", keyword, err)
+			i.Logger.Printf("%s error: %s", keyword, err)
 		}
 	} else {
-		i.Logger().Printf("Unknown command: %s", keyword)
+		i.Logger.Printf("Unknown command: %s", keyword)
 		result = ""
 	}
 	i.cRsp <- &MessageResponse{req, result}
@@ -322,10 +321,10 @@ func (i *Interpreter) handleResponse(resp *MessageResponse) {
 	if resp.text == "" {
 		return
 	}
-	i.Logger().Printf("%s", resp)
+	i.Logger.Printf("%s", resp)
 	if resp.req.ischan {
-		i.bot.IRC().Privmsg(resp.req.channel, resp.text)
+		//		i.bot.IRC().Privmsg(resp.req.channel, resp.text)
 	} else {
-		i.bot.IRC().Privmsg(resp.req.nick, resp.text)
+		//		i.bot.IRC().Privmsg(resp.req.nick, resp.text)
 	}
 }
