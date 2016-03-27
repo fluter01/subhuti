@@ -6,20 +6,18 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
 )
 
 type Bot struct {
 	BaseModule
 
-	config *BotConfig
-
+	config   *BotConfig
+	stdin    *Stdin
+	engine   *CommandEngine
 	modules  []Module
-	handlers []EventHandlers
-	cmdMap   CmdMap
+	handlers map[EventType]EventHandlers
 	start    time.Time
 	eventQ   chan *Event
-	quit     chan bool
 }
 
 func NewBot(name string, config *BotConfig) *Bot {
@@ -29,18 +27,13 @@ func NewBot(name string, config *BotConfig) *Bot {
 	bot.start = time.Now()
 	bot.Name = name
 	bot.config = config
-	bot.quit = make(chan bool)
+	bot.eventQ = make(chan *Event)
+	bot.exitCh = make(chan bool)
+	bot.Logger = NewLogger(fmt.Sprintf("%s-bot", bot.Name))
+	bot.Logger = NewLogger("stdout")
+	bot.handlers = make(map[EventType]EventHandlers)
 
-	bot.modules = []Module{
-		NewStdin(bot),
-	}
-
-	for i := range config.IRC {
-		bot.modules = append(bot.modules, NewIRC(bot, config.IRC[i]))
-	}
-
-	bot.handlers = make([]EventHandlers, EventCount)
-	bot.RegisterEventHandler(UserInput, bot.handleUserInput)
+	bot.RegisterEventHandler(Input, bot.handleInput)
 	bot.RegisterEventHandler(PrivateMessage, bot.handlePrivateMessage)
 	bot.RegisterEventHandler(ChannelMessage, bot.handleChannelMessage)
 	bot.RegisterEventHandler(UserJoin, HandleUserJoin)
@@ -49,25 +42,23 @@ func NewBot(name string, config *BotConfig) *Bot {
 	bot.RegisterEventHandler(UserNick, HandleUserNick)
 	bot.RegisterEventHandler(Pong, HandlePong)
 
-	bot.cmdMap = make(map[string]CmdFunc)
+	bot.stdin = NewStdin(bot)
+	bot.engine = NewCommandEngine(bot)
+	bot.modules = []Module{
+		bot.stdin,
+		bot.engine,
+	}
+	for i := range config.IRC {
+		bot.modules = append(bot.modules, NewIRC(bot, config.IRC[i]))
+	}
 
-	bot.cmdMap["SAVE"] = bot.onSave
-	bot.cmdMap["SHOW"] = bot.onShow
-	bot.cmdMap["STATUS"] = bot.onStatus
-	bot.cmdMap["EXIT"] = bot.onExit
-	bot.cmdMap["CONNECT"] = bot.onConnect
-	bot.cmdMap["DISCONNECT"] = bot.onDisconnect
-	bot.cmdMap["RECONNECT"] = bot.onReconnect
-
-	bot.eventQ = make(chan *Event)
-
-	bot.Logger = NewLogger(fmt.Sprintf("%s-bot", bot.Name))
+	bot.State = Initialized
 
 	return bot
 }
 
 func (bot *Bot) String() string {
-	return fmt.Sprintf("Bot %s: %s", bot.Name, bot.config)
+	return fmt.Sprintf("Bot %s: {%s} %s", bot.Name, bot.config, bot.State)
 }
 
 func (bot *Bot) Start() {
@@ -90,76 +81,81 @@ func (bot *Bot) Start() {
 		bot.Logger.Printf("Module %s running", mod)
 	}
 
-	bot.Loop()
+	bot.State = Running
+	bot.loop()
 }
 
-func (bot *Bot) Loop() {
+func (bot *Bot) loop() {
 	var event *Event
-	for {
-		event = bot.GetEvent()
-		if event == nil {
+	var exit bool
+	bot.wait.Add(1)
+	for !exit {
+		select {
+		case event = <-bot.eventQ:
+			if event == nil {
+				continue
+			}
+			bot.handleEvent(event)
+			break
+		case exit = <-bot.exitCh:
 			break
 		}
-		//bot.logger.Printf("Event %s", event)
-		bot.handleEvent(event)
-		//bot.handlers[event.evt](event.data)
 	}
-	bot.Logger.Print("Bot loop exiting")
+	bot.wait.Done()
+	bot.Logger.Print("Bot exiting")
+}
+
+func (bot *Bot) Stop() {
+	var err error
+	var mod Module
+	bot.Logger.Printf("bot %s stopping", bot.Name)
+	for _, mod = range bot.modules {
+		err = mod.Stop()
+		if err != nil {
+			bot.Logger.Printf("module %s stop failed: %s", mod, err)
+		} else {
+			bot.Logger.Printf("module %s stopped", mod)
+		}
+	}
+	bot.exitCh <- true
+	bot.wait.Wait()
+	bot.State = Stopped
 }
 
 // events
-func (bot *Bot) handleEvent(event *Event) {
-	var hs EventHandlers
-	var h EventHandler
-
-	if event.evt < EventCount {
-		hs = bot.handlers[event.evt]
-		if hs == nil {
-			bot.Logger.Printf("BUG: %s unhandled", event.evt)
-			return
-		}
-		for _, h = range hs {
-			h(event.data)
-		}
-	} else {
-		bot.Logger.Println("Unknown event type:", event.evt)
-	}
-}
-
 func (bot *Bot) AddEvent(event *Event) {
 	bot.eventQ <- event
-}
-
-func (bot *Bot) GetEvent() *Event {
-	return <-bot.eventQ
 }
 
 func (bot *Bot) RegisterEventHandler(evt EventType, h EventHandler) {
 	bot.handlers[evt] = append(bot.handlers[evt], h)
 }
 
-// end events
+func (bot *Bot) handleEvent(event *Event) {
+	var hs EventHandlers
+	var h EventHandler
 
-func (bot *Bot) handleUserInput(data interface{}) {
-	var input string
-	var first byte
-
-	input = data.(string)
-	input = strings.TrimSpace(input)
-	first = input[0]
-
-	if unicode.IsSpace(rune(input[1])) {
-		bot.Logger.Print("Invalid command, space after trigger")
+	hs, ok := bot.handlers[event.evt]
+	if !ok {
+		bot.Logger.Println("Unknown event type:", event.evt)
 		return
 	}
-	// TODO: single command engine
-	if first == bot.config.Trigger {
-		bot.handleCommand(input[1:])
-	} else if first == bot.config.Trigger {
-		//		bot.IRC().handleCommand(input[1:])
-	} else {
-		fmt.Println("Unknow commands")
+	if hs == nil {
+		bot.Logger.Printf("%s ignored", event.evt)
+		return
 	}
+	for _, h = range hs {
+		h(event.data)
+	}
+}
+
+// end events
+
+func (bot *Bot) handleInput(data interface{}) {
+	var input string
+
+	input = data.(string)
+	bot.engine.Submit(input)
 }
 
 func (bot *Bot) handlePrivateMessage(data interface{}) {
@@ -195,32 +191,4 @@ func (bot *Bot) handleChannelMessage(data interface{}) {
 		chanMsgData.channel,
 		chanMsgData.text)
 	req.irc.interpreter.RequestChan() <- req
-}
-
-func (bot *Bot) handleCommand(cmd string) {
-	var err error
-	var arr []string
-	var data string
-	var f CmdFunc
-	var ok bool
-
-	arr = strings.SplitN(cmd, " ", 2)
-	cmd = arr[0]
-	cmd = strings.ToUpper(cmd)
-	if len(arr) == 2 {
-		data = arr[1]
-	} else {
-		data = ""
-	}
-	f, ok = bot.cmdMap[cmd]
-	if !ok {
-		bot.Logger.Print("Unhandled command: ", cmd)
-		return
-	}
-
-	bot.Logger.Printf("Bot command %s", cmd)
-	err = f(data)
-	if err != nil {
-		bot.Logger.Printf("Failed to handle command %s: %s", cmd, err)
-	}
 }

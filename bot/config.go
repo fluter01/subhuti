@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	DefaultBotTrigger     = '/'
 	DefaultChannelTrigger = '!'
 )
 
@@ -127,6 +128,14 @@ func SaveToFile(config *BotConfig, path string) error {
 	out.WriteTo(file)
 
 	return nil
+}
+
+func (config *BotConfig) GetTrigger() byte {
+	c := config.Trigger
+	if c == 0 {
+		c = DefaultBotTrigger
+	}
+	return c
 }
 
 func (config *BotConfig) GetIRC(server string) *IRCConfig {

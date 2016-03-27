@@ -7,9 +7,11 @@ import (
 )
 
 type EventType int
+type EventHandler func(interface{})
+type EventHandlers []EventHandler
 
 const (
-	UserInput EventType = iota
+	Input EventType = iota
 	UserJoin
 	UserPart
 	UserQuit
@@ -23,7 +25,7 @@ const (
 
 func (evt EventType) String() string {
 	var eventNames [EventCount]string = [...]string{
-		"UserInput",
+		"Input",
 		"UserJoin",
 		"UserPart",
 		"UserQuit",
@@ -36,16 +38,13 @@ func (evt EventType) String() string {
 	if evt < EventCount {
 		return eventNames[evt]
 	}
-	return "Unknown"
+	return fmt.Sprintf("%d", evt)
 }
 
 type Event struct {
 	evt  EventType
 	data interface{}
 }
-
-type EventHandler func(interface{})
-type EventHandlers []EventHandler
 
 func (event Event) String() string {
 	return fmt.Sprintf("Type %s, data [%s]",

@@ -25,7 +25,7 @@ func NewStdin(bot *Bot) *Stdin {
 	stdin = new(Stdin)
 	stdin.bot = bot
 	stdin.fd = os.Stdin
-	stdin.Logger = NewLogger("stdin")
+	stdin.Logger = NewLogger(bot.Name + "-stdin")
 	return stdin
 }
 
@@ -62,7 +62,7 @@ func (stdin *Stdin) Loop2() {
 		}
 		line = string(buf[:n])
 		stdin.Logger.Println("user input:", line)
-		stdin.bot.AddEvent(NewEvent(UserInput, line))
+		stdin.bot.AddEvent(NewEvent(Input, line))
 	}
 	stdin.Logger.Println("Stdin loop exiting")
 	stdin.state = Stopped
@@ -83,7 +83,7 @@ func (stdin *Stdin) Loop() {
 			continue
 		}
 		stdin.Logger.Println("user input:", line)
-		stdin.bot.AddEvent(NewEvent(UserInput,
+		stdin.bot.AddEvent(NewEvent(Input,
 			line))
 		//TODO: shortcut EXIT
 		if line == fmt.Sprintf("%c%s", stdin.bot.config.Trigger, "exit") {
@@ -94,7 +94,7 @@ func (stdin *Stdin) Loop() {
 	if err = scanner.Err(); err != nil {
 		stdin.Logger.Println("scanner error:", err)
 	}
-	stdin.Logger.Println("Stdin loop exiting")
+	stdin.Logger.Println("Stdin loop exited")
 	stdin.state = Stopped
 }
 

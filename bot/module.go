@@ -2,18 +2,23 @@
 
 package bot
 
-import "log"
+import (
+	"log"
+	"sync"
+)
 
 type Module interface {
 	Init() error
 	Start() error
 	Stop() error
-	Loop()
-	Run()
 	Status() string
+	Run()
 }
 
 type BaseModule struct {
 	Name   string
+	State  ModState
+	exitCh chan bool
+	wait   sync.WaitGroup
 	Logger *log.Logger
 }
