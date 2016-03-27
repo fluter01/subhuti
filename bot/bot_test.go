@@ -29,8 +29,10 @@ func TestBot(t *testing.T) {
 func TestBotEvent(t *testing.T) {
 	config := &BotConfig{}
 	bot := NewBot("test", config)
+	ch := make(chan bool)
 	go func() {
 		bot.Start()
+		ch <- true
 	}()
 	for bot.State != Running {
 	}
@@ -52,12 +54,15 @@ func TestBotEvent(t *testing.T) {
 	})
 	bot.AddEvent(NewEvent(evt, nil))
 
-	bot.Stop()
+	//exit
+	bot.AddEvent(NewEvent(Input, "/exit"))
+	<-ch
 	if bot.State != Stopped {
+		t.Log("state is not stopped")
 		t.Fail()
 	}
-
 	if !hit {
+		t.Log("event handler not called")
 		t.Fail()
 	}
 }

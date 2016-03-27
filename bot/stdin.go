@@ -86,7 +86,7 @@ func (stdin *Stdin) Loop() {
 		stdin.bot.AddEvent(NewEvent(Input,
 			line))
 		//TODO: shortcut EXIT
-		if line == fmt.Sprintf("%c%s", stdin.bot.config.Trigger, "exit") {
+		if line == fmt.Sprintf("%c%s", stdin.bot.config.GetTrigger(), "exit") {
 			break
 		}
 	}

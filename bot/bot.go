@@ -117,9 +117,9 @@ func (bot *Bot) Stop() {
 			bot.Logger.Printf("module %s stopped", mod)
 		}
 	}
+	bot.State = Stopped
 	bot.exitCh <- true
 	bot.wait.Wait()
-	bot.State = Stopped
 }
 
 // events

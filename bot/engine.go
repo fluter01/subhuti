@@ -155,15 +155,7 @@ func (e *CommandEngine) onStatus(string) error {
 }
 
 func (e *CommandEngine) onExit(string) error {
-	var err error
-	var mod Module
-	for _, mod = range e.bot.modules {
-		e.Logger.Printf("Stopping module %s", mod)
-		err = mod.Stop()
-		if err != nil {
-			e.Logger.Printf("Stop module %s failed: %s", mod, err)
-		}
-	}
+	go e.bot.Stop()
 	return nil
 }
 
