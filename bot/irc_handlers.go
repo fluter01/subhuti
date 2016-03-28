@@ -47,7 +47,7 @@ func (irc *IRC) onPong(prefix, param string) {
 	origin = arr[1][1:]
 
 	irc.bot.AddEvent(NewEvent(Pong,
-		&PongData{irc.bot, from, origin}))
+		&PongData{irc.bot, irc, from, origin}))
 }
 
 func (irc *IRC) onJoin(from, cha string) {
@@ -71,7 +71,8 @@ func (irc *IRC) onJoin(from, cha string) {
 		NewEvent(
 			UserJoin,
 			&UserJoinData{
-				EventBase{irc.bot, from, nick, user, host}, cha}))
+				EventBase{irc.bot, from, nick, user, host},
+				irc, cha}))
 }
 
 func (irc *IRC) onPart(from, param string) {
@@ -106,6 +107,7 @@ func (irc *IRC) onPart(from, param string) {
 			UserPart,
 			&UserPartData{
 				EventBase{irc.bot, from, nick, user, host},
+				irc,
 				chn, partMsg}))
 }
 
@@ -130,6 +132,7 @@ func (irc *IRC) onQuit(from, param string) {
 			UserQuit,
 			&UserQuitData{
 				EventBase{irc.bot, from, nick, user, host},
+				irc,
 				quitMsg}))
 }
 
@@ -151,6 +154,7 @@ func (irc *IRC) onNick(from, param string) {
 			UserNick,
 			&UserNickData{
 				EventBase{irc.bot, from, nick, user, host},
+				irc,
 				newNick}))
 }
 
@@ -201,6 +205,7 @@ func (irc *IRC) onPrivmsg(from, param string) {
 			&ChannelMessageData{
 				PrivateMessageData{
 					EventBase{irc.bot, from, nick, user, host},
+					irc,
 					msg}, to}))
 	} else {
 		// handle ctcp
@@ -212,6 +217,7 @@ func (irc *IRC) onPrivmsg(from, param string) {
 		irc.bot.AddEvent(NewEvent(PrivateMessage,
 			&PrivateMessageData{
 				EventBase{irc.bot, from, nick, user, host},
+				irc,
 				msg}))
 	}
 }

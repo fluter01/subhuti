@@ -154,6 +154,7 @@ func (bot *Bot) handleEvent(event *Event) {
 func (bot *Bot) handleInput(data interface{}) {
 	var input string
 
+	bot.Logger.Println(data)
 	input = data.(string)
 	bot.engine.Submit(input)
 }
@@ -161,34 +162,36 @@ func (bot *Bot) handleInput(data interface{}) {
 func (bot *Bot) handlePrivateMessage(data interface{}) {
 	privMsgData := data.(*PrivateMessageData)
 	text := privMsgData.text
-	trigger := bot.config.GetIRC("TODO").GetTrigger("")
+	trigger := privMsgData.irc.config.GetTrigger("")
 
 	if !strings.HasPrefix(text, trigger) {
 		text = fmt.Sprintf("%s%s", trigger, text)
 	}
-	req := NewMessageRequest(
-		nil,
+	req := MessageRequest{
+		privMsgData.irc,
 		false,
 		privMsgData.from,
 		privMsgData.nick,
 		privMsgData.user,
 		privMsgData.host,
 		"",
-		text)
-	req.irc.interpreter.RequestChan() <- req
+		text,
+		false}
+	req.irc.interpreter.Submit(&req)
 }
 
 func (bot *Bot) handleChannelMessage(data interface{}) {
 	chanMsgData := data.(*ChannelMessageData)
 
-	req := NewMessageRequest(
-		nil,
+	req := MessageRequest{
+		chanMsgData.irc,
 		true,
 		chanMsgData.from,
 		chanMsgData.nick,
 		chanMsgData.user,
 		chanMsgData.host,
 		chanMsgData.channel,
-		chanMsgData.text)
-	req.irc.interpreter.RequestChan() <- req
+		chanMsgData.text,
+		false}
+	req.irc.interpreter.Submit(&req)
 }

@@ -67,7 +67,7 @@ type IRC struct {
 
 	handlers    map[string]CommandHandler
 	channels    map[string]*Channel
-	interpreter Interpreter
+	interpreter *Interpreter
 }
 
 func NewIRC(bot *Bot, config *IRCConfig) *IRC {
@@ -94,6 +94,7 @@ func NewIRC(bot *Bot, config *IRCConfig) *IRC {
 	irc.timer = nil
 	irc.timerExCh = make(chan bool)
 	irc.channels = make(map[string]*Channel)
+	irc.interpreter = NewInterpreter(irc)
 	// IRC internal handlers, plugins should use Events to register
 	irc.handlers = map[string]CommandHandler{
 		"PING":    irc.onPing,
@@ -167,8 +168,9 @@ func (irc *IRC) String() string {
 // Module interface
 func (irc *IRC) Init() error {
 	irc.Logger.Printf("Initializing module %s", irc)
+	err := irc.interpreter.Init()
 	irc.State = Disconnected
-	return nil
+	return err
 }
 
 func (irc *IRC) Status() string {
@@ -185,13 +187,15 @@ func (irc *IRC) Status() string {
 
 func (irc *IRC) Start() error {
 	irc.Logger.Printf("Starting module %s", irc)
-	return nil
+	err := irc.interpreter.Start()
+	return err
 }
 
 func (irc *IRC) Run() {
 	irc.wait.Add(2)
 	go irc.messageLoop()
 	go irc.commandLoop()
+	irc.interpreter.Run()
 
 	if irc.config.AutoConnect {
 		if irc.connect() != nil {
@@ -207,6 +211,7 @@ func (irc *IRC) Stop() error {
 		irc.Quit("Exiting...")
 		irc.disconnect()
 	}
+	irc.interpreter.Stop()
 	irc.msgExCh <- true
 	irc.cmdExCh <- true
 
@@ -403,9 +408,11 @@ func (irc *IRC) readLoop() {
 		}
 		if err != nil {
 			irc.Logger.Print("Read error:", err)
-			irc.bot.AddEvent(NewEvent(Disconnect, irc))
-			if irc.config.AutoConnect {
-				defer irc.reconnect()
+			if !irc.stopping {
+				irc.bot.AddEvent(NewEvent(Disconnect, irc))
+				if irc.config.AutoConnect {
+					defer irc.reconnect()
+				}
 			}
 			break
 		}
@@ -415,11 +422,9 @@ func (irc *IRC) readLoop() {
 }
 
 func (irc *IRC) reconnect() {
-	if !irc.stopping {
-		irc.conn = nil
-		irc.State = Disconnected
-		irc.connect()
-	}
+	irc.conn = nil
+	irc.State = Disconnected
+	irc.connect()
 }
 
 func (irc *IRC) sendMsg(msg string) error {

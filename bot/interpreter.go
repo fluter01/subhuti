@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 // Message data for intepret
@@ -20,9 +19,7 @@ type MessageRequest struct {
 	host    string
 	channel string
 	text    string
-
-	// computed in the interpreter
-	direct bool // directed to me
+	direct  bool
 }
 
 func (req *MessageRequest) String() string {
@@ -38,33 +35,6 @@ func (req *MessageRequest) String() string {
 	}
 }
 
-func NewMessageRequest(irc *IRC,
-	ischan bool,
-	from, nick, user, host string,
-	channel, text string) *MessageRequest {
-	req := &MessageRequest{
-		irc:     irc,
-		ischan:  ischan,
-		from:    from,
-		nick:    nick,
-		user:    user,
-		host:    host,
-		channel: channel,
-		text:    text}
-	return req
-}
-
-// response data
-type MessageResponse struct {
-	req  *MessageRequest
-	text string
-}
-
-func (resp *MessageResponse) String() string {
-	return fmt.Sprintf("--> %s] %s",
-		resp.req.from, resp.text)
-}
-
 // Parsers
 var NotParsed = errors.New("Not parsed")
 
@@ -75,42 +45,49 @@ type Parser interface {
 type Interpreter struct {
 	BaseModule
 
-	bot   *Bot
-	irc   *IRC
-	state ModState
+	irc *IRC
 
-	cReq  chan *MessageRequest
-	cRsp  chan *MessageResponse
-	cxReq chan bool
-	cxRsp chan bool
-
-	wg *sync.WaitGroup
+	reqCh   chan *MessageRequest
+	reqExCh chan bool
 
 	parsers  map[string]Parser
 	commands map[string]Command
 
 	nickRe *regexp.Regexp
+	msgRe1 *regexp.Regexp
+	msgRe2 *regexp.Regexp
+	msgRe3 *regexp.Regexp
 }
 
-func NewInterpreter(bot *Bot) *Interpreter {
+func NewInterpreter(irc *IRC) *Interpreter {
 	i := new(Interpreter)
-	i.bot = bot
-	i.wg = new(sync.WaitGroup)
-	i.cReq = make(chan *MessageRequest)
-	i.cRsp = make(chan *MessageResponse)
-	i.cxReq = make(chan bool)
-	i.cxRsp = make(chan bool)
+	i.irc = irc
+	i.Logger = irc.Logger
+	i.reqCh = make(chan *MessageRequest)
+	i.reqExCh = make(chan bool)
 
 	i.commands = make(map[string]Command)
-
 	i.AddCommand("VERSION", new(VersionCommand))
 	i.AddCommand("SOURCE", new(SourceCommand))
 
 	i.parsers = make(map[string]Parser)
 	i.AddParser("URL", NewURLParser(i))
 
-	//i.nickRe = regexp.MustCompile(
-	//	fmt.Sprintf("\\b%s\\b", bot.config.BotNick))
+	i.nickRe = regexp.MustCompile(
+		fmt.Sprintf("\\b%s\\b", irc.config.BotNick))
+
+	// ?version
+	trigger := i.irc.config.GetTrigger("")
+	trigger = regexp.QuoteMeta(trigger)
+	msgPtn1 := fmt.Sprintf("^%s(.*)$", trigger)
+	// me: version
+	msgPtn2 := fmt.Sprintf("^%s[:,;.]?(?:\\s+)?(.*)$", i.irc.config.BotNick)
+	// version, me
+	msgPtn3 := fmt.Sprintf("^(.*)(?:[,.:;]) %s$", i.irc.config.BotNick)
+
+	i.msgRe1 = regexp.MustCompile(msgPtn1)
+	i.msgRe2 = regexp.MustCompile(msgPtn2)
+	i.msgRe3 = regexp.MustCompile(msgPtn3)
 	return i
 }
 
@@ -120,37 +97,30 @@ func (i *Interpreter) String() string {
 
 func (i *Interpreter) Init() error {
 	i.Logger.Printf("Initializing module %s", i)
-	i.state = Initialized
+	i.State = Initialized
 	return nil
 }
 
 func (i *Interpreter) Start() error {
 	i.Logger.Printf("Starting module %s", i)
-	i.state = Running
 	return nil
 }
 
 func (i *Interpreter) Stop() error {
-	i.cxReq <- true
-	i.cxRsp <- true
+	i.reqExCh <- true
+	i.wait.Wait()
+	i.State = Stopped
 	return nil
 }
 
-func (i *Interpreter) Loop() {
-	i.wg.Add(1)
-	go i.requestLoop()
-	i.wg.Add(2)
-	go i.responseLoop()
-
-	i.wg.Wait()
-}
-
 func (i *Interpreter) Run() {
-	go i.Loop()
+	i.wait.Add(1)
+	go i.requestLoop()
+	i.State = Running
 }
 
 func (i *Interpreter) Status() string {
-	return fmt.Sprintf("%s", i.state)
+	return fmt.Sprintf("%s", i.State)
 }
 
 // Parsers
@@ -185,8 +155,8 @@ func (i *Interpreter) GetCommand(name string) Command {
 }
 
 // channels
-func (i *Interpreter) RequestChan() chan *MessageRequest {
-	return i.cReq
+func (i *Interpreter) Submit(req *MessageRequest) {
+	i.reqCh <- req
 }
 
 // process request
@@ -197,30 +167,33 @@ func (i *Interpreter) requestLoop() {
 
 	for !quit {
 		select {
-		case req = <-i.cReq:
+		case req = <-i.reqCh:
 			i.handleRequest(req)
 			break
-		case quit = <-i.cxReq:
+		case quit = <-i.reqExCh:
 			break
 		}
 	}
-	i.wg.Done()
+	i.Logger.Println("request loop exited")
+	i.wait.Done()
 }
 
-func (i *Interpreter) responseLoop() {
-	var quit bool
-	var resp *MessageResponse
+func (i *Interpreter) sendReply(res string, req *MessageRequest) {
+	if req.ischan {
+		i.irc.Privmsg(req.channel, res)
+	} else {
+		i.irc.Privmsg(req.nick, res)
+	}
+}
 
-	for !quit {
-		select {
-		case resp = <-i.cRsp:
-			i.handleResponse(resp)
-			break
-		case quit = <-i.cxRsp:
-			break
+func (i *Interpreter) runParsers(req *MessageRequest) {
+	for _, p := range i.parsers {
+		res, err := p.Parse(req)
+		if err == nil {
+			i.sendReply(res, req)
+			return
 		}
 	}
-	i.wg.Done()
 }
 
 // handle message requests
@@ -229,19 +202,8 @@ func (i *Interpreter) responseLoop() {
 func (i *Interpreter) handleRequest(req *MessageRequest) {
 	i.Logger.Printf("%s", req)
 
-	var result string
-	var err error
-
 	if i.nickRe.FindStringIndex(req.text) != nil {
 		req.direct = true
-	}
-
-	for _, p := range i.parsers {
-		result, err = p.Parse(req)
-		if err == nil {
-			i.cRsp <- &MessageResponse{req, result}
-			return
-		}
 	}
 
 	var command string
@@ -253,43 +215,29 @@ func (i *Interpreter) handleRequest(req *MessageRequest) {
 
 	trigger = i.irc.config.GetTrigger(chn)
 	trigger = regexp.QuoteMeta(trigger)
-	// ?version
 	msgPtn1 := fmt.Sprintf("^%s(.*)$", trigger)
-	// me: version
-	msgPtn2 := fmt.Sprintf("^%s[:,;.]?(?:\\s+)?(.*)$", i.irc.config.BotNick)
-	// version, me
-	msgPtn3 := fmt.Sprintf("^(.*)(?:[,.:;]) %s$", i.irc.config.BotNick)
-	// fmt.Println(msgPtn1)
-	// fmt.Println(msgPtn2)
-	// fmt.Println(msgPtn3)
-
-	msgRe1 := regexp.MustCompile(msgPtn1)
-	msgRe2 := regexp.MustCompile(msgPtn2)
-	msgRe3 := regexp.MustCompile(msgPtn3)
+	i.msgRe1 = regexp.MustCompile(msgPtn1)
 
 	var m []string
-	m = msgRe1.FindStringSubmatch(text)
+	m = i.msgRe1.FindStringSubmatch(text)
 	if m != nil {
 		command = m[1]
 		goto Found
 	}
-	m = msgRe2.FindStringSubmatch(text)
+	m = i.msgRe2.FindStringSubmatch(text)
 	if m != nil {
 		command = m[1]
 		goto Found
 	}
-	m = msgRe3.FindStringSubmatch(text)
+	m = i.msgRe3.FindStringSubmatch(text)
 	if m != nil {
 		command = m[1]
 		goto Found
 	}
-	fmt.Println("no match")
+	i.runParsers(req)
 	return
 
 Found:
-	fmt.Println(m)
-	fmt.Printf("command is %s\n", command)
-
 	var keyword string
 	var arguments string
 
@@ -302,29 +250,16 @@ Found:
 	var cmd Command
 
 	cmd = i.GetCommand(keyword)
-	fmt.Println("cmd is", cmd)
 	if cmd != nil {
-		result, err = cmd.Run(arguments)
-		if err != nil {
+		i.Logger.Printf("calling %s with %s", keyword, arguments)
+		res, err := cmd.Run(arguments)
+		if err == nil {
+			i.sendReply(res, req)
+		} else {
 			i.Logger.Printf("%s error: %s", keyword, err)
 		}
 	} else {
-		i.Logger.Printf("Unknown command: %s", keyword)
-		result = ""
+		i.runParsers(req)
 	}
-	i.cRsp <- &MessageResponse{req, result}
-
 	return
-}
-
-func (i *Interpreter) handleResponse(resp *MessageResponse) {
-	if resp.text == "" {
-		return
-	}
-	i.Logger.Printf("%s", resp)
-	if resp.req.ischan {
-		//		i.bot.IRC().Privmsg(resp.req.channel, resp.text)
-	} else {
-		//		i.bot.IRC().Privmsg(resp.req.nick, resp.text)
-	}
 }

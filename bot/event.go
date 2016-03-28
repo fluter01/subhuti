@@ -69,28 +69,33 @@ type EventBase struct {
 
 type UserJoinData struct {
 	EventBase
+	irc     *IRC
 	channel string
 }
 
 type UserPartData struct {
 	EventBase
+	irc     *IRC
 	channel string
 	msg     string
 }
 
 type UserQuitData struct {
 	EventBase
+	irc *IRC
 	msg string
 }
 
 type UserNickData struct {
 	EventBase
+	irc     *IRC
 	newNick string
 }
 
 // PrivateMessage
 type PrivateMessageData struct {
 	EventBase
+	irc  *IRC
 	text string
 }
 
@@ -102,6 +107,7 @@ type ChannelMessageData struct {
 
 type PongData struct {
 	bot    *Bot
+	irc    *IRC
 	from   string
 	origin string
 }
