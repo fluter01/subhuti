@@ -13,22 +13,22 @@ import (
 	"time"
 )
 
-const cr byte = '\r'
-const lf byte = '\n'
-const crlf string = "\r\n"
+const (
+	PING_INTERVAL = 5 * time.Second
 
-const PING_INTERVAL = 5 * time.Second
+	cr   byte   = '\r'
+	lf   byte   = '\n'
+	crlf string = "\r\n"
+
+	msgPtn     = "^(:[^ \000]+ )?([[:alpha:]]+|[[:digit:]]{3}) (.*)$"
+	tgtPtn     = "^([A-Za-z\\[\\]\\\\`_\\^{|}][A-Za-z0-9\\[\\]\\\\`_\\^{|}-]{0,15})!([^ @\000]+)@([a-zA-Z0-9:/.-]*)$"
+	rpl_002Ptn = "Your host is ([a-zA-Z0-9.-]*)(\\[[0-9./]*\\])?, running version (.*)"
+)
 
 var (
 	msgRe     *regexp.Regexp
 	nickRe    *regexp.Regexp
 	rpl_002Re *regexp.Regexp
-)
-
-const (
-	msgPtn     = "^(:[^ \000]+ )?([[:alpha:]]+|[[:digit:]]{3}) (.*)$"
-	tgtPtn     = "^([A-Za-z\\[\\]\\\\`_\\^{|}][A-Za-z0-9\\[\\]\\\\`_\\^{|}-]{0,15})!([^ @\000]+)@([a-zA-Z0-9:/.-]*)$"
-	rpl_002Ptn = "Your host is ([a-zA-Z0-9.-]*)(\\[[0-9./]*\\])?, running version (.*)"
 )
 
 func init() {

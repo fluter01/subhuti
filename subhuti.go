@@ -21,9 +21,10 @@ var (
 )
 
 var (
-	cfg     string
-	help    bool
-	noproxy bool
+	cfg         string
+	help        bool
+	noproxy     bool
+	logtostderr bool
 )
 
 func usage() {
@@ -36,6 +37,7 @@ func main() {
 	flag.BoolVar(&help, "help", false, "show help message")
 	flag.BoolVar(&noproxy, "noproxy", false, "do not use proxy")
 	flag.BoolVar(&noproxy, "np", false, "do not use proxy")
+	flag.BoolVar(&logtostderr, "stderr", false, "log to stderr")
 	flag.Parse()
 
 	if help {
@@ -58,6 +60,10 @@ func main() {
 
 	if !noproxy && config.Proxy != "" {
 		os.Setenv("HTTP_PROXY", config.Proxy)
+	}
+
+	if logtostderr {
+		bot.NewLoggerFunc = bot.NewTestLogger
 	}
 
 	var b *bot.Bot

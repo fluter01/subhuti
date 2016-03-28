@@ -9,9 +9,9 @@ import (
 	"runtime"
 )
 
-var NewLoggerFunc = newLogger
+var NewLoggerFunc = NewLogger
 
-func newLogger(name string) *log.Logger {
+func NewLogger(name string) *log.Logger {
 	var f io.Writer
 	var err error
 
@@ -36,6 +36,6 @@ func newLogger(name string) *log.Logger {
 	return log.New(f, "", log.LstdFlags|log.Lshortfile)
 }
 
-func newTestLogger(name string) *log.Logger {
-	return log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
+func NewTestLogger(name string) *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }

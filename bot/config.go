@@ -46,6 +46,12 @@ type BotConfig struct {
 	IRC           []*IRCConfig
 }
 
+func (config *IRCConfig) String() string {
+	return fmt.Sprintf("%s %s:%d %s",
+		config.Name,
+		config.Server, config.Port, config.BotNick)
+}
+
 func (config *BotConfig) String() string {
 	return fmt.Sprintf("%s:%s",
 		config.path,

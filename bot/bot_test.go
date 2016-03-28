@@ -3,14 +3,11 @@
 package bot
 
 import (
-	_ "fmt"
-	_ "strings"
 	"testing"
-	_ "time"
 )
 
 func init() {
-	NewLoggerFunc = newTestLogger
+	NewLoggerFunc = NewTestLogger
 }
 
 func TestBot(t *testing.T) {
