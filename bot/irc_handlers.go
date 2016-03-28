@@ -281,7 +281,7 @@ func (irc *IRC) onRPL_YOURHOST(from, param string) {
 
 	info = irc.getReplyByColon(param)
 	m := rpl_002Re.FindStringSubmatch(info)
-	irc.server.host, irc.server.version = m[1], m[3]
+	irc.host, irc.version = m[1], m[3]
 
 	irc.Logger.Println(info)
 }
@@ -667,7 +667,7 @@ func (irc *IRC) onRPL_HOSTHIDDEN(from, param string) {
 		panic(me)
 	}
 	mask = arr[1]
-	irc.host = mask
+	irc.cloak = mask
 }
 
 func (irc *IRC) onERR_INVITEONLYCHAN(from, param string) {

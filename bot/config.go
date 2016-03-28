@@ -31,6 +31,7 @@ type IRCConfig struct {
 	RealName        string
 	Identify_passwd string
 	Trigger         byte
+	RawLogging      bool
 	AutoConnect     bool
 	Channels        []*ChannelConfig
 }
@@ -40,7 +41,6 @@ type BotConfig struct {
 	Proxy         string
 	HomeDir       string
 	LogDir        string
-	RawLogging    bool
 	Trigger       byte
 	CompileServer string
 	IRC           []*IRCConfig
