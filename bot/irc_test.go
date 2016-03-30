@@ -47,6 +47,7 @@ func newTestBot(ch chan bool) *Bot {
 				BotNick:     G,
 			},
 		},
+		CompileServer: "127.0.0.1:1234",
 	}
 	bot := NewBot("TestBot", config)
 	go func() {
