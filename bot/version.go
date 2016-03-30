@@ -11,7 +11,7 @@ const (
 const (
 	Major = 0
 	Minor = 1
-	Rel   = 1
+	Rel   = 2
 )
 
 func Version() string {
