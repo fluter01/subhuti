@@ -43,6 +43,7 @@ type BotConfig struct {
 	LogDir        string
 	Trigger       byte
 	CompileServer string
+	YoutubeAPIKey string
 	IRC           []*IRCConfig
 }
 

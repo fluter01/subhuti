@@ -3,6 +3,7 @@
 package bot
 
 import (
+	"net"
 	"testing"
 )
 
@@ -198,5 +199,112 @@ func TestIRCCommandPrivate(t *testing.T) {
 	for irc.interpreter.total != 6 {
 	}
 
+	delTestBot(bot, t, ch)
+}
+
+func TestIRCURLParserGetTitle(t *testing.T) {
+	ch := make(chan bool)
+	bot := newTestBot(ch)
+	if bot.State != Running {
+		t.Fail()
+	}
+
+	var irc *IRC
+	for _, mod := range bot.modules {
+		if _, ok := mod.(*IRC); ok {
+			irc = mod.(*IRC)
+			break
+		}
+	}
+	if irc == nil {
+		t.Fail()
+	}
+
+	r, w := net.Pipe()
+	irc.conn = w
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :https://www.bing.com")
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.conn = nil
+	delTestBot(bot, t, ch)
+}
+
+func TestIRCURLParserPaste(t *testing.T) {
+	ch := make(chan bool)
+	bot := newTestBot(ch)
+	if bot.State != Running {
+		t.Fail()
+	}
+
+	var irc *IRC
+	for _, mod := range bot.modules {
+		if _, ok := mod.(*IRC); ok {
+			irc = mod.(*IRC)
+			break
+		}
+	}
+	if irc == nil {
+		t.Fail()
+	}
+
+	r, w := net.Pipe()
+	irc.conn = w
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :http://ideone.com/FllowW")
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :http://sprunge.us/RWOP")
+
+	n, _ = r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.conn = nil
+	delTestBot(bot, t, ch)
+}
+
+func TestIRCURLParserYoutube(t *testing.T) {
+	ch := make(chan bool)
+	bot := newTestBot(ch)
+	if bot.State != Running {
+		t.Fail()
+	}
+
+	var irc *IRC
+	for _, mod := range bot.modules {
+		if _, ok := mod.(*IRC); ok {
+			irc = mod.(*IRC)
+			break
+		}
+	}
+	if irc == nil {
+		t.Fail()
+	}
+
+	r, w := net.Pipe()
+	irc.conn = w
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :https://www.youtube.com/watch?v=Pd12BmxP-08")
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :https://youtube.com/watch?v=Pd12BmxP-08")
+	buf = make([]byte, 1024)
+	n, _ = r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :https://youtu.be/QEllLECo4OM")
+	buf = make([]byte, 1024)
+	n, _ = r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.conn = nil
 	delTestBot(bot, t, ch)
 }

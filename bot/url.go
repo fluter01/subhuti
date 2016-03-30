@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/html"
-
 	"github.com/fluter01/lotsawa"
-
 	"github.com/fluter01/paste"
+
+	"golang.org/x/net/html"
+	"google.golang.org/api/youtube/v3"
 )
 
 const (
@@ -27,9 +27,19 @@ const (
 
 var fnameRe = regexp.MustCompile(fnamePtn)
 
+// API key for youtube client
+type APIKey struct {
+	key string
+}
+
+func (k *APIKey) Get() (string, string) {
+	return "key", k.key
+}
+
 type URLParser struct {
 	i      *Interpreter
 	client *http.Client
+	key    *APIKey
 }
 
 func NewURLParser(i *Interpreter) *URLParser {
@@ -43,6 +53,11 @@ func NewURLParser(i *Interpreter) *URLParser {
 		}
 		return nil
 	}
+	if i.irc.bot.config.YoutubeAPIKey != "" {
+		p.key = &APIKey{i.irc.bot.config.YoutubeAPIKey}
+	} else {
+		p.key = nil
+	}
 	p.client = client
 	return p
 }
@@ -53,11 +68,9 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		return "", NotParsed
 	}
 
-	p.i.Logger.Printf("URL parser processing")
+	p.i.Logger.Printf("URL parser: %s", urls)
+
 	var res string
-
-	res = fmt.Sprintf("URL is %s", urls)
-
 	var u *url.URL
 	var err error
 
@@ -69,8 +82,10 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 
 	host := strings.ToLower(u.Host)
 	switch host {
-	case "youtube.com", "www.youtube.com":
-		res = p.parseYoutube(urls)
+	case "youtube.com", "www.youtube.com", "youtu.be":
+		if p.key != nil {
+			res = p.parseYoutube(urls, u)
+		}
 	// handle pastebins
 	default:
 		data, err := paste.Get(urls)
@@ -177,9 +192,78 @@ func (p *URLParser) getTitle(urls string) string {
 	return result
 }
 
-func (p *URLParser) parseYoutube(urls string) string {
-	fmt.Println("Yutube:", urls)
+func (p *URLParser) parseYoutubeGetId(u *url.URL) string {
+	switch u.Host {
+	case "youtu.be":
+		return strings.TrimPrefix(u.Path, "/")
+	case "youtube.com", "www.youtube.com":
+		return u.Query().Get("v")
+	default:
+		return ""
+	}
 	return ""
+}
+
+func (p *URLParser) parseYoutube(urls string, u *url.URL) string {
+	id := p.parseYoutubeGetId(u)
+	if id == "" {
+		p.i.Logger.Println("cannot parse id")
+		return ""
+	}
+	youtube, err := youtube.New(&http.Client{})
+	if err != nil {
+		p.i.Logger.Println("youtube new service:", err)
+		return ""
+	}
+
+	opt := p.key
+	call := youtube.Videos.List("snippet,contentDetails,statistics").Id(id)
+	rsp, err := call.Do(opt)
+	if err != nil {
+		p.i.Logger.Println("youtube call error:", err)
+		return ""
+	}
+	if len(rsp.Items) == 0 {
+		p.i.Logger.Printf("list of %s returned no result", id)
+		return ""
+	}
+
+	var res string
+	v := rsp.Items[0]
+	s := v.Snippet
+	c := v.ContentDetails
+	t := v.Statistics
+
+	if s == nil {
+		p.i.Logger.Printf("no snippet returned")
+		return ""
+	}
+
+	res = fmt.Sprintf("%s by %s", s.Title, s.ChannelTitle)
+	if c != nil {
+		var h, m, s int
+		var duration string
+		_, err = fmt.Sscanf(c.Duration, "PT%dH%dM%dS", &h, &m, &s)
+		if err != nil {
+			_, err = fmt.Sscanf(c.Duration, "PT%dM%dS", &m, &s)
+			if err != nil {
+				duration = ""
+			} else {
+				duration = fmt.Sprintf("%d:%02d", m, s)
+			}
+		} else {
+			duration = fmt.Sprintf("%d:%02d:%02d", h, m, s)
+		}
+		if duration != "" {
+			res += fmt.Sprintf(" %s", duration)
+		}
+	}
+	if t != nil {
+		res += fmt.Sprintf(" | view %d like %d dislike %d comment %d",
+			t.ViewCount, t.LikeCount, t.DislikeCount, t.CommentCount)
+	}
+
+	return res
 }
 
 func (p *URLParser) processCode(code string) (string, bool) {
@@ -215,8 +299,8 @@ func (p *URLParser) processCode(code string) (string, bool) {
 
 func (p *URLParser) submitToCompile(code string) (string, error) {
 	var err error
-
 	var s *lotsawa.CompileServiceStub
+
 	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.irc.bot.config.CompileServer)
 	if err != nil {
 		p.i.Logger.Println("Failed to dial rpc server:", err)
