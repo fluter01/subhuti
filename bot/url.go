@@ -53,11 +53,9 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 		return "", NotParsed
 	}
 
-	p.i.Logger.Printf("URL parser processing")
+	p.i.Logger.Printf("URL parser: %s", urls)
+
 	var res string
-
-	res = fmt.Sprintf("URL is %s", urls)
-
 	var u *url.URL
 	var err error
 
@@ -215,8 +213,8 @@ func (p *URLParser) processCode(code string) (string, bool) {
 
 func (p *URLParser) submitToCompile(code string) (string, error) {
 	var err error
-
 	var s *lotsawa.CompileServiceStub
+
 	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.irc.bot.config.CompileServer)
 	if err != nil {
 		p.i.Logger.Println("Failed to dial rpc server:", err)

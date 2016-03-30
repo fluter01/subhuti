@@ -3,6 +3,7 @@
 package bot
 
 import (
+	"net"
 	"testing"
 )
 
@@ -46,6 +47,7 @@ func newTestBot(ch chan bool) *Bot {
 				BotNick:     G,
 			},
 		},
+		CompileServer: "127.0.0.1:1234",
 	}
 	bot := NewBot("TestBot", config)
 	go func() {
@@ -198,5 +200,72 @@ func TestIRCCommandPrivate(t *testing.T) {
 	for irc.interpreter.total != 6 {
 	}
 
+	delTestBot(bot, t, ch)
+}
+
+func TestIRCURLParserGetTitle(t *testing.T) {
+	ch := make(chan bool)
+	bot := newTestBot(ch)
+	if bot.State != Running {
+		t.Fail()
+	}
+
+	var irc *IRC
+	for _, mod := range bot.modules {
+		if _, ok := mod.(*IRC); ok {
+			irc = mod.(*IRC)
+			break
+		}
+	}
+	if irc == nil {
+		t.Fail()
+	}
+
+	r, w := net.Pipe()
+	irc.conn = w
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :https://www.bing.com")
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.conn = nil
+	delTestBot(bot, t, ch)
+}
+
+func TestIRCURLParserPaste(t *testing.T) {
+	ch := make(chan bool)
+	bot := newTestBot(ch)
+	if bot.State != Running {
+		t.Fail()
+	}
+
+	var irc *IRC
+	for _, mod := range bot.modules {
+		if _, ok := mod.(*IRC); ok {
+			irc = mod.(*IRC)
+			break
+		}
+	}
+	if irc == nil {
+		t.Fail()
+	}
+
+	r, w := net.Pipe()
+	irc.conn = w
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :http://ideone.com/FllowW")
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :http://sprunge.us/RWOP")
+
+	n, _ = r.Read(buf)
+	t.Log(string(buf[:n]))
+
+	irc.conn = nil
 	delTestBot(bot, t, ch)
 }
