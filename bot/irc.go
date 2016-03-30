@@ -14,6 +14,7 @@ import (
 
 const (
 	Ping_interval        = 5 * time.Second
+	connect_wait         = 5 * time.Second
 	cr            byte   = '\r'
 	lf            byte   = '\n'
 	crlf          string = "\r\n"
@@ -230,68 +231,73 @@ func (irc *IRC) connect() error {
 	var raddr *net.TCPAddr
 	var tcpConn *net.TCPConn
 
-	addr = fmt.Sprintf("%s:%d",
-		irc.config.Server,
-		irc.config.Port)
-	irc.Logger.Printf("Connecting to IRC server %s", addr)
-	raddr, err = net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		irc.Logger.Printf("Failed to resolve irc server %s", addr)
-		irc.Logger.Println(err)
-		return err
-	}
-
-	tcpConn, err = net.DialTCP("tcp", nil, raddr)
-	if err != nil {
-		irc.Logger.Printf("Failed to connect to irc server: %s", err)
-		return err
-	}
-	irc.conn = tcpConn
-	if irc.config.Ssl {
-		irc.Logger.Println("Connecting using tls")
-		var tlsConn *tls.Conn
-		var tlsConfig tls.Config
-
-		// tlsConfig.InsecureSkipVerify = true
-		tlsConfig.ServerName = "freenode.net"
-		tlsConn = tls.Client(tcpConn, &tlsConfig)
-		//  conn, err = tls.Dial("tcp", addr, &tlsConfig)
-		err = tlsConn.Handshake()
+	for {
+		addr = fmt.Sprintf("%s:%d",
+			irc.config.Server,
+			irc.config.Port)
+		irc.Logger.Printf("Connecting to IRC server %s", addr)
+		raddr, err = net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
-			irc.Logger.Printf("Failed to run tls handshake: %s", err)
-			return err
+			irc.Logger.Printf("Failed to resolve irc server %s", addr)
+			irc.Logger.Println(err)
+			goto fail
 		}
-		// fmt.Println(tlsConn)
-		state := tlsConn.ConnectionState()
-		irc.Logger.Printf("Version %X Cipher %X",
-			state.Version,
-			state.CipherSuite)
-		irc.Logger.Printf("receiving %d certificates",
-			len(state.PeerCertificates))
-		for i, cert := range state.PeerCertificates {
-			irc.Logger.Printf("certificate %d: %s", i, dumpCert(cert))
+
+		tcpConn, err = net.DialTCP("tcp", nil, raddr)
+		if err != nil {
+			irc.Logger.Printf("Failed to connect to irc server: %s", err)
+			goto fail
 		}
-		// fmt.Println("ct", tlsConn.ConnectionState().PeerCertificates)
-		irc.conn = tlsConn
-	}
+		irc.conn = tcpConn
+		if irc.config.Ssl {
+			irc.Logger.Println("Connecting using tls")
+			var tlsConn *tls.Conn
+			var tlsConfig tls.Config
 
-	irc.Logger.Printf("Connected %s <--> %s",
-		irc.conn.LocalAddr(), irc.conn.RemoteAddr())
-	irc.State = Connected
-	irc.Logger.Println("IRC connected")
+			// tlsConfig.InsecureSkipVerify = true
+			tlsConfig.ServerName = "freenode.net"
+			tlsConn = tls.Client(tcpConn, &tlsConfig)
+			//  conn, err = tls.Dial("tcp", addr, &tlsConfig)
+			err = tlsConn.Handshake()
+			if err != nil {
+				irc.Logger.Printf("Failed to run tls handshake: %s", err)
+				goto fail
+			}
+			// fmt.Println(tlsConn)
+			state := tlsConn.ConnectionState()
+			irc.Logger.Printf("Version %X Cipher %X",
+				state.Version,
+				state.CipherSuite)
+			irc.Logger.Printf("receiving %d certificates",
+				len(state.PeerCertificates))
+			for i, cert := range state.PeerCertificates {
+				irc.Logger.Printf("certificate %d: %s", i, dumpCert(cert))
+			}
+			// fmt.Println("ct", tlsConn.ConnectionState().PeerCertificates)
+			irc.conn = tlsConn
+		}
 
-	err = irc.register()
-	if err != nil {
-		irc.Logger.Println("Failed to register to server")
-		return err
-	}
-	irc.State = Identified
-	irc.Logger.Println("IRC regiested")
+		irc.Logger.Printf("Connected %s <--> %s",
+			irc.conn.LocalAddr(), irc.conn.RemoteAddr())
+		irc.State = Connected
+		irc.Logger.Println("IRC connected")
 
-	err = irc.joinChannels()
-	if err != nil {
-		irc.Logger.Println("Failed to join pre-configured channels")
-		return err
+		err = irc.register()
+		if err != nil {
+			irc.Logger.Println("Failed to register to server", err)
+			goto fail
+		}
+		irc.State = Identified
+		irc.Logger.Println("IRC regiested")
+
+		err = irc.joinChannels()
+		if err != nil {
+			irc.Logger.Println("Failed to join pre-configured channels", err)
+			goto fail
+		}
+		break
+	fail:
+		time.Sleep(connect_wait)
 	}
 
 	irc.timer = time.NewTicker(Ping_interval)

@@ -196,10 +196,9 @@ func (irc *IRC) onPrivmsg(from, param string) {
 	if IsChannel(to) {
 		// get channel
 		// send message to channel
-		var ch *Channel
-
-		ch = irc.GetChannel(to)
-		ch.onPrivmsg(nick, msg)
+		if ch := irc.GetChannel(to); ch != nil {
+			ch.onPrivmsg(nick, msg)
+		}
 
 		irc.bot.AddEvent(NewEvent(ChannelMessage,
 			&ChannelMessageData{

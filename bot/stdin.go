@@ -70,7 +70,7 @@ func (stdin *Stdin) Loop2() {
 	stdin.wait.Done()
 }
 
-func (stdin *Stdin) Loop() {
+func (stdin *Stdin) loop() {
 	var err error
 	var scanner *bufio.Scanner
 	var line string
@@ -101,7 +101,7 @@ func (stdin *Stdin) Loop() {
 
 func (stdin *Stdin) Run() {
 	stdin.wait.Add(1)
-	go stdin.Loop()
+	go stdin.loop()
 }
 
 func (stdin *Stdin) Status() string {

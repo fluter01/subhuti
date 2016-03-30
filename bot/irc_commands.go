@@ -86,10 +86,9 @@ func (irc *IRC) Privmsg(to, msg string) error {
 	var line string
 
 	if IsChannel(to) {
-		var ch *Channel
-
-		ch = irc.GetChannel(to)
-		ch.onPrivmsg(irc.config.BotNick, msg)
+		if ch := irc.GetChannel(to); ch != nil {
+			ch.onPrivmsg(irc.config.BotNick, msg)
+		}
 	}
 	line = fmt.Sprintf("PRIVMSG %s :%s", to, msg)
 

@@ -22,11 +22,3 @@ func Version() string {
 func Source() string {
 	return "http://github.com/fluter01/subhuti"
 }
-
-func HandleVersion(*MessageRequest, string) (string, error) {
-	return Version(), nil
-}
-
-func HandleSource(*MessageRequest, string) (string, error) {
-	return Source(), nil
-}

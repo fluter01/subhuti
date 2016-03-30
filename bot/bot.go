@@ -82,13 +82,13 @@ func (bot *Bot) Start() {
 	}
 
 	bot.State = Running
+	bot.wait.Add(1)
 	bot.loop()
 }
 
 func (bot *Bot) loop() {
 	var event *Event
 	var exit bool
-	bot.wait.Add(1)
 	for !exit {
 		select {
 		case event = <-bot.eventQ:

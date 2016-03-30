@@ -57,6 +57,8 @@ type Interpreter struct {
 	msgRe1 *regexp.Regexp
 	msgRe2 *regexp.Regexp
 	msgRe3 *regexp.Regexp
+
+	total uint
 }
 
 func NewInterpreter(irc *IRC) *Interpreter {
@@ -138,10 +140,12 @@ func (i *Interpreter) ListParser() []Parser {
 
 // commands management
 func (i *Interpreter) AddCommand(name string, cmd Command) {
+	name = strings.ToUpper(name)
 	i.commands[name] = cmd
 }
 
 func (i *Interpreter) DelCommand(name string) {
+	name = strings.ToUpper(name)
 	delete(i.commands, name)
 }
 
@@ -179,8 +183,15 @@ func (i *Interpreter) requestLoop() {
 }
 
 func (i *Interpreter) sendReply(res string, req *MessageRequest) {
+	if res == "" {
+		return
+	}
 	if req.ischan {
-		i.irc.Privmsg(req.channel, res)
+		if req.direct {
+			i.irc.Privmsg(req.channel, fmt.Sprintf("%s: %s", req.nick, res))
+		} else {
+			i.irc.Privmsg(req.channel, res)
+		}
 	} else {
 		i.irc.Privmsg(req.nick, res)
 	}
@@ -202,6 +213,7 @@ func (i *Interpreter) runParsers(req *MessageRequest) {
 func (i *Interpreter) handleRequest(req *MessageRequest) {
 	i.Logger.Printf("%s", req)
 
+	i.total++
 	if i.nickRe.FindStringIndex(req.text) != nil {
 		req.direct = true
 	}
@@ -234,6 +246,7 @@ func (i *Interpreter) handleRequest(req *MessageRequest) {
 		command = m[1]
 		goto Found
 	}
+	i.Logger.Printf("Not a command call, calling parsers")
 	i.runParsers(req)
 	return
 
@@ -251,7 +264,7 @@ Found:
 
 	cmd = i.GetCommand(keyword)
 	if cmd != nil {
-		i.Logger.Printf("calling %s with %s", keyword, arguments)
+		i.Logger.Printf("calling %s with [%s]", keyword, arguments)
 		res, err := cmd.Run(arguments)
 		if err == nil {
 			i.sendReply(res, req)
@@ -259,6 +272,7 @@ Found:
 			i.Logger.Printf("%s error: %s", keyword, err)
 		}
 	} else {
+		i.Logger.Printf("command not handled, calling parsers")
 		i.runParsers(req)
 	}
 	return
