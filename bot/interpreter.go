@@ -3,7 +3,6 @@
 package bot
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -33,13 +32,6 @@ func (req *MessageRequest) String() string {
 			req.from,
 			req.text)
 	}
-}
-
-// Parsers
-var NotParsed = errors.New("Not parsed")
-
-type Parser interface {
-	Parse(*MessageRequest) (string, error)
 }
 
 type Interpreter struct {
@@ -199,10 +191,11 @@ func (i *Interpreter) sendReply(res string, req *MessageRequest) {
 
 func (i *Interpreter) runParsers(req *MessageRequest) {
 	for _, p := range i.parsers {
-		res, err := p.Parse(req)
+		err := p.Parse(i.irc.bot, req)
 		if err == nil {
-			i.sendReply(res, req)
 			return
+		} else if err != ErrNotParsed {
+			i.Logger.Printf("%s parse error: %s", p, err)
 		}
 	}
 }

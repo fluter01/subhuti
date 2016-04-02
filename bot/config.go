@@ -19,6 +19,8 @@ type ChannelConfig struct {
 	Name           string
 	Trigger        byte
 	IgnoreURLTitle bool
+	Lang           string
+	Repaste        bool
 }
 
 type IRCConfig struct {
@@ -182,4 +184,13 @@ func (config *IRCConfig) IgnoreURLTitle(channel string) bool {
 		}
 	}
 	return ignore
+}
+
+func (config *IRCConfig) ChannelRepaste(channel string) bool {
+	for _, ch := range config.Channels {
+		if ch.Name == channel {
+			return ch.Repaste
+		}
+	}
+	return false
 }

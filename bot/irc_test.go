@@ -45,6 +45,12 @@ func newTestBot(ch chan bool) *Bot {
 				AutoConnect: false,
 				Trigger:     '?',
 				BotNick:     G,
+				Channels: []*ChannelConfig{
+					&ChannelConfig{
+						Name:    "#candice",
+						Repaste: true,
+					},
+				},
 			},
 		},
 		CompileServer: "127.0.0.1:1234",
@@ -265,6 +271,9 @@ func TestIRCURLParserPaste(t *testing.T) {
 
 	n, _ = r.Read(buf)
 	t.Log(string(buf[:n]))
+
+	// no repaste and no reply
+	irc.onCommand("PRIVMSG", "foo", "#candice :http://sprunge.us/UjQf")
 
 	irc.conn = nil
 	delTestBot(bot, t, ch)

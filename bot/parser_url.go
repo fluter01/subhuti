@@ -62,50 +62,63 @@ func NewURLParser(i *Interpreter) *URLParser {
 	return p
 }
 
-func (p *URLParser) Parse(req *MessageRequest) (string, error) {
+func (p *URLParser) sendReply(res string, req *MessageRequest) error {
+	if res == "" {
+		return nil
+	}
+	if req.ischan {
+		return p.i.irc.Privmsg(req.channel, res)
+	}
+	return p.i.irc.Privmsg(req.nick, res)
+}
+
+func (p *URLParser) Parse(bot *Bot, req *MessageRequest) error {
 	urls := xurls.Strict.FindString(req.text)
 	if len(urls) == 0 {
-		return "", NotParsed
+		return ErrNotParsed
 	}
 
 	p.i.Logger.Printf("URL parser: %s", urls)
 
-	var res string
 	var u *url.URL
 	var err error
 
 	u, err = url.Parse(urls)
 	if err != nil {
 		p.i.Logger.Printf("Invalid URL: %s", urls)
-		return "", NotParsed
+		return ErrNotParsed
 	}
 
 	host := strings.ToLower(u.Host)
 	switch host {
 	case "youtube.com", "www.youtube.com", "youtu.be":
 		if p.key != nil {
-			res = p.parseYoutube(urls, u)
+			res := p.parseYoutube(urls, u)
+			if res != "" {
+				return p.sendReply(fmt.Sprintf("%s's video: %s",
+					req.nick, res), req)
+			}
 		}
+		fallthrough
 	// handle pastebins
 	default:
 		data, err := paste.Get(urls)
 		if err != nil {
-			if err == paste.NotSupported {
+			if err == paste.ErrNotSupported {
 				p.i.Logger.Printf("Unhandled URL, getting title")
 				if p.i.irc.config.IgnoreURLTitle(req.channel) {
 					p.i.Logger.Printf("Ignoring url title for %s", req.channel)
-					res = ""
 					break
 				}
 				title := p.getTitle(urls)
-				if title == "" {
-					res = ""
-				} else if !req.ischan {
-					res = fmt.Sprintf("Your link: %s", title)
-				} else if req.direct {
-					res = fmt.Sprintf("%s: Your link: %s", req.nick, title)
-				} else {
-					res = fmt.Sprintf("%s's link: %s", req.nick, title)
+				if title != "" {
+					var res string
+					if !req.ischan {
+						res = fmt.Sprintf("Your link: %s", title)
+					} else {
+						res = fmt.Sprintf("%s's link: %s", req.nick, title)
+					}
+					return p.sendReply(res, req)
 				}
 			} else {
 				p.i.Logger.Printf("error get url: %s", err)
@@ -113,21 +126,25 @@ func (p *URLParser) Parse(req *MessageRequest) (string, error) {
 			break
 		}
 		p.i.Logger.Printf("code paste, compiling")
-		cmplres, issues := p.processCode(data)
+		cmplres, have_issues := p.processCode(data)
 		if cmplres == "" {
-			return "", nil
+			return nil
 		}
-		res = fmt.Sprintf("%s's paste: %s", req.nick, cmplres)
-		if issues {
+		res := fmt.Sprintf("%s's paste: %s", req.nick, cmplres)
+		if have_issues {
 			res += fmt.Sprintf(" -- issues found, please address them first!")
+			return p.sendReply(res, req)
 		} else {
 			// do not repaste from sprunge
 			if host == "sprunge.us" {
-				return "", nil
+				return nil
+			}
+			if req.irc.config.ChannelRepaste(req.channel) {
+				return p.sendReply(res, req)
 			}
 		}
 	}
-	return res, nil
+	return nil
 }
 
 func (p *URLParser) getTitle(urls string) string {
