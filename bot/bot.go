@@ -36,11 +36,12 @@ func NewBot(name string, config *BotConfig) *Bot {
 	bot.RegisterEventHandler(Input, bot.handleInput)
 	bot.RegisterEventHandler(PrivateMessage, bot.handlePrivateMessage)
 	bot.RegisterEventHandler(ChannelMessage, bot.handleChannelMessage)
-	bot.RegisterEventHandler(UserJoin, HandleUserJoin)
-	bot.RegisterEventHandler(UserPart, HandleUserPart)
-	bot.RegisterEventHandler(UserQuit, HandleUserQuit)
-	bot.RegisterEventHandler(UserNick, HandleUserNick)
-	bot.RegisterEventHandler(Pong, HandlePong)
+
+	for k, v := range eventMap {
+		for _, h := range v {
+			bot.RegisterEventHandler(k, h)
+		}
+	}
 
 	bot.stdin = NewStdin(bot)
 	bot.engine = NewCommandEngine(bot)

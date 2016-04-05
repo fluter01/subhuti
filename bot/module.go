@@ -15,6 +15,11 @@ type Module interface {
 	Run()
 }
 
+type EventModule interface {
+	Module
+	Handle(data interface{})
+}
+
 type BaseModule struct {
 	Name   string
 	State  ModState
