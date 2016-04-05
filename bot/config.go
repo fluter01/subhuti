@@ -13,6 +13,7 @@ import (
 const (
 	DefaultBotTrigger     = '/'
 	DefaultChannelTrigger = '!'
+	DefaultChannelLang    = "C"
 )
 
 type ChannelConfig struct {
@@ -193,4 +194,17 @@ func (config *IRCConfig) ChannelRepaste(channel string) bool {
 		}
 	}
 	return false
+}
+
+func (config *IRCConfig) ChannelLang(channel string) string {
+	var lang string
+	for _, ch := range config.Channels {
+		if ch.Name == channel {
+			lang = ch.Lang
+		}
+	}
+	if lang == "" {
+		lang = DefaultChannelLang
+	}
+	return lang
 }

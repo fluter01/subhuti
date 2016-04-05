@@ -126,7 +126,9 @@ func (p *URLParser) Parse(bot *Bot, req *MessageRequest) error {
 			break
 		}
 		p.i.Logger.Printf("code paste, compiling")
-		cmplres, have_issues := p.processCode(data)
+
+		lang := p.i.irc.config.ChannelLang(req.channel)
+		cmplres, have_issues := p.processCode(data, lang)
 		if cmplres == "" {
 			return nil
 		}
@@ -283,20 +285,36 @@ func (p *URLParser) parseYoutube(urls string, u *url.URL) string {
 	return res
 }
 
-func (p *URLParser) processCode(code string) (string, bool) {
+func (p *URLParser) processCode(code string, lang string) (string, bool) {
 	var err error
-	var id string
 	var issues string
+	var with_issues bool
+	//issues, err = p.submitToCompile(code)
 
-	var with_issues bool = false
-	issues, err = p.submitToCompile(code)
+	var s *lotsawa.CompileServiceStub
 
-	if err == nil && issues != "" {
+	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.irc.bot.config.CompileServer)
+	if err != nil {
+		p.i.Logger.Println("Failed to dial rpc server:", err)
+		return "", false
+	}
+	defer s.Close()
+	var arg lotsawa.CompileArgs = lotsawa.CompileArgs{code, lang}
+	var res lotsawa.CompileReply
+	err = s.Compile(&arg, &res)
+
+	if err != nil {
+		p.i.Logger.Println("Failed to call rpc service:", err)
+		return "", false
+	}
+
+	if res.C_Output != "" || res.C_Error != "" {
+		issues = fmt.Sprintf("%s%s", res.C_Output, res.C_Error)
 		with_issues = true
 	}
 
 	if !with_issues {
-		id, err = paste.Paste(code)
+		id, err := paste.Paste(code)
 		if err != nil {
 			return "", false
 		}
@@ -306,36 +324,10 @@ func (p *URLParser) processCode(code string) (string, bool) {
 	data := fmt.Sprintf("%s\n\n"+
 		"----------------------------------------------------------------\n"+
 		"%s", code, issues)
-	id, err = paste.Paste(data)
+	id, err := paste.Paste(data)
 	if err != nil {
 		return "", false
 	}
 
 	return id, true
-}
-
-func (p *URLParser) submitToCompile(code string) (string, error) {
-	var err error
-	var s *lotsawa.CompileServiceStub
-
-	s, err = lotsawa.NewCompileServiceStub("tcp", p.i.irc.bot.config.CompileServer)
-	if err != nil {
-		p.i.Logger.Println("Failed to dial rpc server:", err)
-		return "", err
-	}
-	defer s.Close()
-	var arg lotsawa.CompileArgs = lotsawa.CompileArgs{code, "C"}
-	var res lotsawa.CompileReply
-	err = s.Compile(&arg, &res)
-
-	if err != nil {
-		p.i.Logger.Println("Failed to call rpc service:", err)
-		return "", err
-	}
-
-	var issues string
-	if res.C_Output != "" || res.C_Error != "" {
-		issues = fmt.Sprintf("%s%s", res.C_Output, res.C_Error)
-	}
-	return issues, nil
 }
