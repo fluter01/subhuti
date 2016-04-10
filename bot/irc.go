@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Ping_interval        = 5 * time.Second
+	Ping_interval        = 1 * time.Minute
 	connect_wait         = 5 * time.Second
 	cr            byte   = '\r'
 	lf            byte   = '\n'
@@ -475,8 +475,7 @@ func (irc *IRC) runTimer() {
 	for !stop {
 		select {
 		case <-irc.timer.C:
-			//irc.Logger.Printf("::::tick %s", t)
-			//irc.Ping(irc.server.host)
+			irc.Ping(irc.host)
 		case stop = <-irc.timerExCh:
 			break
 		}
