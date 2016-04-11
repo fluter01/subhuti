@@ -13,19 +13,11 @@ type EventHandlers []EventHandler
 var (
 	// EventMap is the global map where each event handlers register itself.
 	eventMap = make(map[EventType]EventHandlers)
-
-	// EventMods holds the event modules.
-	eventMods []EventModule
 )
 
 // RegisterEventHandler add event handler to the event map.
 func RegisterEventHandler(typ EventType, h EventHandler) {
 	eventMap[typ] = append(eventMap[typ], h)
-}
-
-// RegisterEventModule add event module to the event map.
-func RegisterEventModule(m EventModule) {
-	eventMods = append(eventMods, m)
 }
 
 const (

@@ -61,8 +61,8 @@ func NewInterpreter(irc *IRC) *Interpreter {
 	i.reqExCh = make(chan bool)
 
 	i.commands = make(map[string]Command)
-	i.AddCommand("VERSION", VersionCommand)
-	i.AddCommand("SOURCE", SourceCommand)
+	i.RegisterCommand("VERSION", VersionCommand)
+	i.RegisterCommand("SOURCE", SourceCommand)
 
 	i.parsers = make(map[string]Parser)
 	i.AddParser("URL", NewURLParser(i))
@@ -131,7 +131,7 @@ func (i *Interpreter) ListParser() []Parser {
 }
 
 // commands management
-func (i *Interpreter) AddCommand(name string, cmd Command) {
+func (i *Interpreter) RegisterCommand(name string, cmd Command) {
 	name = strings.ToUpper(name)
 	i.commands[name] = cmd
 }
@@ -258,7 +258,7 @@ Found:
 	cmd = i.GetCommand(keyword)
 	if cmd != nil {
 		i.Logger.Printf("calling %s with [%s]", keyword, arguments)
-		res, err := cmd(arguments)
+		res, err := cmd(i.irc, arguments)
 		if err == nil {
 			i.sendReply(res, req)
 		} else {

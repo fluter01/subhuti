@@ -15,15 +15,21 @@ type Module interface {
 	Run()
 }
 
-type EventModule interface {
-	Module
-	Handle(data interface{})
-}
-
 type BaseModule struct {
 	Name   string
 	State  ModState
 	exitCh chan bool
 	wait   sync.WaitGroup
 	Logger *log.Logger
+}
+
+var (
+	// initModuleFuncs is a slice that contains the functions to create new modules.
+	// The functions will be called when the bot is initialized.
+	initModuleFuncs []func(*Bot) Module
+)
+
+// RegisterInitModuleFunc registers f to initModuleFuncs.
+func RegisterInitModuleFunc(f func(*Bot) Module) {
+	initModuleFuncs = append(initModuleFuncs, f)
 }

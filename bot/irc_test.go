@@ -73,14 +73,14 @@ func delTestBot(bot *Bot, t *testing.T, ch chan bool) {
 	}
 }
 
-type bashCmd struct {
+var (
 	pc *int
 	c  chan bool
-}
+)
 
-func (b *bashCmd) Run(string) (string, error) {
-	(*b.pc)++
-	b.c <- true
+func bashCmd(*IRC, string) (string, error) {
+	(*pc)++
+	c <- true
 	return "", nil
 }
 
@@ -104,7 +104,8 @@ func TestIRCCommandChannel(t *testing.T) {
 
 	var counter int
 	var c chan bool = make(chan bool)
-	irc.interpreter.AddCommand("bash", &bashCmd{&counter, c})
+	pc = &counter
+	irc.interpreter.RegisterCommand("bash", bashCmd)
 
 	irc.onCommand("PRIVMSG", "", "#candice :hello")
 	// channel messages
@@ -185,7 +186,7 @@ func TestIRCCommandPrivate(t *testing.T) {
 
 	var counter int
 	var c chan bool = make(chan bool)
-	irc.interpreter.AddCommand("bash", &bashCmd{&counter, c})
+	irc.interpreter.RegisterCommand("bash", bashCmd)
 
 	irc.onCommand("PRIVMSG", "", "foo :hello")
 	// channel messages

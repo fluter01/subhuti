@@ -33,15 +33,10 @@ func NewBot(name string, config *BotConfig) *Bot {
 		bot.config.LogDir, bot.Name))
 	bot.handlers = make(map[EventType]EventHandlers)
 
+	// basic handles that keep the bot work
 	bot.RegisterEventHandler(Input, bot.handleInput)
 	bot.RegisterEventHandler(PrivateMessage, bot.handlePrivateMessage)
 	bot.RegisterEventHandler(ChannelMessage, bot.handleChannelMessage)
-
-	for k, v := range eventMap {
-		for _, h := range v {
-			bot.RegisterEventHandler(k, h)
-		}
-	}
 
 	bot.stdin = NewStdin(bot)
 	bot.engine = NewCommandEngine(bot)
@@ -51,6 +46,11 @@ func NewBot(name string, config *BotConfig) *Bot {
 	}
 	for i := range config.IRC {
 		bot.modules = append(bot.modules, NewIRC(bot, config.IRC[i]))
+	}
+
+	// create addon modules
+	for _, f := range initModuleFuncs {
+		bot.modules = append(bot.modules, f(bot))
 	}
 
 	bot.State = Initialized
@@ -152,6 +152,7 @@ func (bot *Bot) handleEvent(event *Event) {
 
 // end events
 
+// event handlers
 func (bot *Bot) handleInput(data interface{}) {
 	var input string
 
@@ -195,4 +196,12 @@ func (bot *Bot) handleChannelMessage(data interface{}) {
 		chanMsgData.text,
 		false}
 	req.irc.interpreter.Submit(&req)
+}
+
+func (bot *Bot) foreachIRC(f func(*IRC)) {
+	for _, m := range bot.modules {
+		if irc, ok := m.(*IRC); ok {
+			f(irc)
+		}
+	}
 }

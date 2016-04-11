@@ -59,6 +59,8 @@ type IRC struct {
 	supports []string
 	cloak    string
 
+	lag time.Duration
+
 	msgCh     chan string
 	cmdCh     chan *IRCCommand
 	msgExCh   chan bool
