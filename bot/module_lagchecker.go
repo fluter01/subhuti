@@ -78,7 +78,7 @@ func (lc *LagChecker) handlePong(data interface{}) {
 		}
 		d := now - then
 		lag := time.Duration(d) * time.Nanosecond
-		lc.Logger.Printf("%s Lag %s", pong.irc, lag)
+		pong.irc.Logger.Printf("%s Lag %s", pong.irc, lag)
 		pong.irc.lag = lag
 	}
 }

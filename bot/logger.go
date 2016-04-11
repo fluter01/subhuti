@@ -37,5 +37,5 @@ func NewLogger(name string) *log.Logger {
 }
 
 func NewTestLogger(name string) *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
+	return log.New(os.Stderr, name, log.LstdFlags|log.Lshortfile)
 }

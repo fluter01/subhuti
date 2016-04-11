@@ -170,15 +170,15 @@ func (bot *Bot) handlePrivateMessage(data interface{}) {
 		text = fmt.Sprintf("%s%s", trigger, text)
 	}
 	req := MessageRequest{
-		privMsgData.irc,
-		false,
-		privMsgData.from,
-		privMsgData.nick,
-		privMsgData.user,
-		privMsgData.host,
-		"",
-		text,
-		false}
+		irc:     privMsgData.irc,
+		ischan:  false,
+		from:    privMsgData.from,
+		nick:    privMsgData.nick,
+		user:    privMsgData.user,
+		host:    privMsgData.host,
+		channel: "",
+		text:    text,
+		direct:  false}
 	req.irc.interpreter.Submit(&req)
 }
 
@@ -186,15 +186,15 @@ func (bot *Bot) handleChannelMessage(data interface{}) {
 	chanMsgData := data.(*ChannelMessageData)
 
 	req := MessageRequest{
-		chanMsgData.irc,
-		true,
-		chanMsgData.from,
-		chanMsgData.nick,
-		chanMsgData.user,
-		chanMsgData.host,
-		chanMsgData.channel,
-		chanMsgData.text,
-		false}
+		irc:     chanMsgData.irc,
+		ischan:  true,
+		from:    chanMsgData.from,
+		nick:    chanMsgData.nick,
+		user:    chanMsgData.user,
+		host:    chanMsgData.host,
+		channel: chanMsgData.channel,
+		text:    chanMsgData.text,
+		direct:  false}
 	req.irc.interpreter.Submit(&req)
 }
 

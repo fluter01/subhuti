@@ -31,6 +31,7 @@ const (
 	ChannelMessage
 	Disconnect
 	EventCount
+	MessageParseEvent
 )
 
 func (evt EventType) String() string {

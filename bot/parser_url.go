@@ -8,7 +8,6 @@ import (
 	"github.com/mvdan/xurls"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -18,23 +17,6 @@ import (
 	"golang.org/x/net/html"
 	"google.golang.org/api/youtube/v3"
 )
-
-const (
-	fnamePtn    = "filename=\"(.*)\""
-	httpTimeout = 5
-	maxRedirect = 3
-)
-
-var fnameRe = regexp.MustCompile(fnamePtn)
-
-// API key for youtube client
-type APIKey struct {
-	key string
-}
-
-func (k *APIKey) Get() (string, string) {
-	return "key", k.key
-}
 
 type URLParser struct {
 	i      *Interpreter

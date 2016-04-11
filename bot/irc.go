@@ -612,3 +612,13 @@ func (irc *IRC) LeaveChannel(ch string) *Channel {
 }
 
 // end channel management
+
+func (irc *IRC) sendReply(res string, req *MessageRequest) error {
+	if res == "" {
+		return nil
+	}
+	if req.ischan {
+		return irc.Privmsg(req.channel, res)
+	}
+	return irc.Privmsg(req.nick, res)
+}

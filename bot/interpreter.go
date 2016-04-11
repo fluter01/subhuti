@@ -4,8 +4,11 @@ package bot
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/mvdan/xurls"
 )
 
 // Message data for intepret
@@ -19,6 +22,8 @@ type MessageRequest struct {
 	channel string
 	text    string
 	direct  bool
+	url     string
+	neturl  *url.URL
 }
 
 func (req *MessageRequest) String() string {
@@ -42,7 +47,6 @@ type Interpreter struct {
 	reqCh   chan *MessageRequest
 	reqExCh chan bool
 
-	parsers  map[string]Parser
 	commands map[string]Command
 
 	nickRe *regexp.Regexp
@@ -63,9 +67,6 @@ func NewInterpreter(irc *IRC) *Interpreter {
 	i.commands = make(map[string]Command)
 	i.RegisterCommand("VERSION", VersionCommand)
 	i.RegisterCommand("SOURCE", SourceCommand)
-
-	i.parsers = make(map[string]Parser)
-	i.AddParser("URL", NewURLParser(i))
 
 	i.nickRe = regexp.MustCompile(
 		fmt.Sprintf("\\b%s\\b", irc.config.BotNick))
@@ -115,19 +116,6 @@ func (i *Interpreter) Run() {
 
 func (i *Interpreter) Status() string {
 	return fmt.Sprintf("%s", i.State)
-}
-
-// Parsers
-func (i *Interpreter) AddParser(name string, parser Parser) {
-	i.parsers[name] = parser
-}
-
-func (i *Interpreter) DelParser(name string) {
-	delete(i.parsers, name)
-}
-
-func (i *Interpreter) ListParser() []Parser {
-	return nil
 }
 
 // commands management
@@ -189,20 +177,7 @@ func (i *Interpreter) sendReply(res string, req *MessageRequest) {
 	}
 }
 
-func (i *Interpreter) runParsers(req *MessageRequest) {
-	for _, p := range i.parsers {
-		err := p.Parse(i.irc.bot, req)
-		if err == nil {
-			return
-		} else if err != ErrNotParsed {
-			i.Logger.Printf("%s parse error: %s", p, err)
-		}
-	}
-}
-
 // handle message requests
-// feed the message to parsers, if no parser was able to parse
-// the request, then parse it as commands
 func (i *Interpreter) handleRequest(req *MessageRequest) {
 	i.Logger.Printf("%s", req)
 
@@ -239,8 +214,7 @@ func (i *Interpreter) handleRequest(req *MessageRequest) {
 		command = m[1]
 		goto Found
 	}
-	i.Logger.Printf("Not a command call, calling parsers")
-	i.runParsers(req)
+	i.parse(req)
 	return
 
 Found:
@@ -264,9 +238,27 @@ Found:
 		} else {
 			i.Logger.Printf("%s error: %s", keyword, err)
 		}
-	} else {
-		i.Logger.Printf("command not handled, calling parsers")
-		i.runParsers(req)
+		return
 	}
+	i.parse(req)
 	return
+}
+
+func (i *Interpreter) parse(req *MessageRequest) {
+	urls := xurls.Strict.FindString(req.text)
+	if len(urls) > 0 {
+		i.Logger.Printf("URL in message: %s", urls)
+
+		var u *url.URL
+		var err error
+
+		u, err = url.Parse(urls)
+		if err != nil {
+			i.Logger.Printf("Invalid URL: %s", urls)
+		} else {
+			req.url = urls
+			req.neturl = u
+		}
+	}
+	i.irc.bot.AddEvent(NewEvent(MessageParseEvent, req))
 }
