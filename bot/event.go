@@ -6,19 +6,23 @@ import (
 	"fmt"
 )
 
+// Priority defines the order of the invoke of the handlers.
+// Handlers with High priority is invoke first.
+type Priority int
+
+const (
+	High Priority = iota
+	Low
+)
+
 type EventType int
 type EventHandler func(interface{})
-type EventHandlers []EventHandler
+type EventHandlers *[2][]EventHandler
 
 var (
 	// EventMap is the global map where each event handlers register itself.
 	eventMap = make(map[EventType]EventHandlers)
 )
-
-// RegisterEventHandler add event handler to the event map.
-func RegisterEventHandler(typ EventType, h EventHandler) {
-	eventMap[typ] = append(eventMap[typ], h)
-}
 
 const (
 	Input EventType = iota

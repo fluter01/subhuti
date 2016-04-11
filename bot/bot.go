@@ -129,7 +129,17 @@ func (bot *Bot) AddEvent(event *Event) {
 }
 
 func (bot *Bot) RegisterEventHandler(evt EventType, h EventHandler) {
-	bot.handlers[evt] = append(bot.handlers[evt], h)
+	if _, ok := bot.handlers[evt]; !ok {
+		bot.handlers[evt] = &[2][]EventHandler{}
+	}
+	bot.handlers[evt][High] = append(bot.handlers[evt][High], h)
+}
+
+func (bot *Bot) RegisterEventHandlerPrio(evt EventType, h EventHandler, p Priority) {
+	if _, ok := bot.handlers[evt]; !ok {
+		bot.handlers[evt] = &[2][]EventHandler{}
+	}
+	bot.handlers[evt][p] = append(bot.handlers[evt][p], h)
 }
 
 func (bot *Bot) handleEvent(event *Event) {
@@ -145,8 +155,10 @@ func (bot *Bot) handleEvent(event *Event) {
 		bot.Logger.Printf("%s ignored", event.evt)
 		return
 	}
-	for _, h = range hs {
-		h(event.data)
+	for _, phs := range hs {
+		for _, h = range phs {
+			h(event.data)
+		}
 	}
 }
 

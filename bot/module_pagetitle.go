@@ -63,7 +63,7 @@ func (t *Pagetitle) Init() error {
 
 func (t *Pagetitle) Start() error {
 	t.Logger.Println("Starting Pagetitle")
-	t.bot.RegisterEventHandler(MessageParseEvent, t.parseMessage)
+	t.bot.RegisterEventHandlerPrio(MessageParseEvent, t.parseMessage, Low)
 	t.State = Running
 	return nil
 }

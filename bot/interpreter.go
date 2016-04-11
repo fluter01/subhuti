@@ -39,6 +39,11 @@ func (req *MessageRequest) String() string {
 	}
 }
 
+func (req *MessageRequest) cleanURL() {
+	req.url = ""
+	req.neturl = nil
+}
+
 type Interpreter struct {
 	BaseModule
 

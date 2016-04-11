@@ -153,6 +153,7 @@ func (yt *Youtube) parseMessage(data interface{}) {
 	}
 
 	req.irc.sendReply(res, req)
+	req.cleanURL()
 
 	return
 }
