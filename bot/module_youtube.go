@@ -152,6 +152,7 @@ func (yt *Youtube) parseMessage(data interface{}) {
 			t.ViewCount, t.LikeCount, t.DislikeCount, t.CommentCount)
 	}
 
+	req.irc.Logger.Println("return yt info", res)
 	req.irc.sendReply(res, req)
 	req.cleanURL()
 
