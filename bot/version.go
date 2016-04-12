@@ -10,8 +10,8 @@ const (
 
 const (
 	Major = 0
-	Minor = 1
-	Rel   = 2
+	Minor = 2
+	Rel   = 1
 )
 
 func Version() string {
