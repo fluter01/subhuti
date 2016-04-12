@@ -19,11 +19,6 @@ type EventType int
 type EventHandler func(interface{})
 type EventHandlers *[2][]EventHandler
 
-var (
-	// EventMap is the global map where each event handlers register itself.
-	eventMap = make(map[EventType]EventHandlers)
-)
-
 const (
 	Input EventType = iota
 	UserJoin
