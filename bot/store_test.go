@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-const path = "../db/test"
+const path = "../data/test"
 
 func TestStore(t *testing.T) {
 	store, err := NewStore(path)
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	data := map[string][]byte{
