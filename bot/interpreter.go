@@ -11,39 +11,6 @@ import (
 	"github.com/mvdan/xurls"
 )
 
-// Message data for intepret
-type MessageRequest struct {
-	irc     *IRC
-	ischan  bool
-	from    string
-	nick    string
-	user    string
-	host    string
-	channel string
-	text    string
-	direct  bool
-	url     string
-	neturl  *url.URL
-}
-
-func (req *MessageRequest) String() string {
-	if req.ischan {
-		return fmt.Sprintf("--> %s -> %s] %s",
-			req.from,
-			req.channel,
-			req.text)
-	} else {
-		return fmt.Sprintf("--> %s] %s",
-			req.from,
-			req.text)
-	}
-}
-
-func (req *MessageRequest) cleanURL() {
-	req.url = ""
-	req.neturl = nil
-}
-
 type Interpreter struct {
 	BaseModule
 
@@ -237,7 +204,7 @@ Found:
 	cmd = i.GetCommand(keyword)
 	if cmd != nil {
 		i.Logger.Printf("calling %s with [%s]", keyword, arguments)
-		res, err := cmd(i.irc, arguments)
+		res, err := cmd(req, arguments)
 		if err == nil {
 			i.sendReply(res, req)
 		} else {

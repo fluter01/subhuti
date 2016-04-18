@@ -44,6 +44,8 @@ type BotConfig struct {
 	Proxy         string
 	HomeDir       string
 	LogDir        string
+	DataDir       string
+	DB            string
 	Trigger       byte
 	CompileServer string
 	YoutubeAPIKey string

@@ -38,6 +38,8 @@ func TestNickRe(t *testing.T) {
 func newTestBot(ch chan bool) *Bot {
 	config := &BotConfig{
 		Trigger: '/',
+		DataDir: "../data",
+		DB:      "testbot",
 		IRC: []*IRCConfig{
 			&IRCConfig{
 				Name:        "Localhost",
@@ -78,7 +80,7 @@ var (
 	c  chan bool
 )
 
-func bashCmd(*IRC, string) (string, error) {
+func bashCmd(*MessageRequest, string) (string, error) {
 	(*pc)++
 	c <- true
 	return "", nil

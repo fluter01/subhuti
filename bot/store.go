@@ -1,3 +1,5 @@
+// Copyright 2016 Alex Fluter
+
 package bot
 
 import (
@@ -13,21 +15,17 @@ const (
 	FACTOID
 )
 
-const (
-	root    = "ROOT"
-	factoid = "FACTOID"
-)
-
 var (
 	SpaceNames = map[StoreSpace]string{
-		ROOT:    root,
-		FACTOID: factoid,
+		ROOT:    "ROOT",
+		FACTOID: "FACTOID",
 	}
 )
 
 var (
-	ErrDirNotFound = errors.New("Directory not found")
-	ErrKeyNotFound = errors.New("Key not found")
+	ErrSpaceNotFound = errors.New("Store namespace not found")
+	ErrDirNotFound   = errors.New("Directory not found")
+	ErrKeyNotFound   = errors.New("Key not found")
 )
 
 type Pair struct {
@@ -45,21 +43,30 @@ type Store interface {
 }
 
 type BoltStore struct {
-	db *bolt.DB
+	db        *bolt.DB
+	space     StoreSpace
+	spacename []byte
 }
 
 func NewStore(path string) (Store, error) {
+	return NewStoreSpace(path, ROOT)
+}
+
+func NewStoreSpace(path string, space StoreSpace) (Store, error) {
 	db, err := bolt.Open(path, 0644, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	name, ok := SpaceNames[space]
+	if !ok {
+		return nil, ErrSpaceNotFound
+	}
+
 	err = db.Update(func(tx *bolt.Tx) error {
-		for _, name := range SpaceNames {
-			_, err := tx.CreateBucketIfNotExists([]byte(name))
-			if err != nil {
-				return err
-			}
+		_, err := tx.CreateBucketIfNotExists([]byte(name))
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -67,12 +74,14 @@ func NewStore(path string) (Store, error) {
 		db.Close()
 		return nil, err
 	}
-	return &BoltStore{db: db}, nil
+	return &BoltStore{db: db,
+		space:     space,
+		spacename: []byte(name)}, nil
 }
 
 func (b *BoltStore) Put(key string, value []byte) error {
 	err := b.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(root))
+		bucket := tx.Bucket(b.spacename)
 		if bucket == nil {
 			return ErrDirNotFound
 		}
@@ -85,8 +94,9 @@ func (b *BoltStore) Put(key string, value []byte) error {
 
 func (b *BoltStore) Get(key string) (*Pair, error) {
 	var val []byte
+
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(root))
+		bucket := tx.Bucket(b.spacename)
 		if bucket == nil {
 			return ErrDirNotFound
 		}
@@ -108,7 +118,7 @@ func (b *BoltStore) Get(key string) (*Pair, error) {
 
 func (b *BoltStore) Delete(key string) error {
 	err := b.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(root))
+		bucket := tx.Bucket(b.spacename)
 		if bucket == nil {
 			return ErrDirNotFound
 		}
@@ -121,8 +131,9 @@ func (b *BoltStore) Delete(key string) error {
 
 func (b *BoltStore) Exists(key string) (bool, error) {
 	var exists bool
+
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(root))
+		bucket := tx.Bucket(b.spacename)
 		if bucket == nil {
 			return ErrDirNotFound
 		}
@@ -141,8 +152,9 @@ func (b *BoltStore) Exists(key string) (bool, error) {
 
 func (b *BoltStore) List() ([]*Pair, error) {
 	pairs := make([]*Pair, 0)
+
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(root))
+		bucket := tx.Bucket(b.spacename)
 		if bucket == nil {
 			return ErrDirNotFound
 		}

@@ -83,7 +83,7 @@ func (lc *LagChecker) handlePong(data interface{}) {
 	}
 }
 
-func (lc *LagChecker) run(irc *IRC, args string) (string, error) {
-	err := irc.Ping(fmt.Sprintf("%s %d", lagCheckMarker, time.Now().UnixNano()))
+func (lc *LagChecker) run(req *MessageRequest, args string) (string, error) {
+	err := req.irc.Ping(fmt.Sprintf("%s %d", lagCheckMarker, time.Now().UnixNano()))
 	return "", err
 }
