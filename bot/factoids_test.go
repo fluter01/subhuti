@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -12,6 +13,9 @@ func TestFactoids(t *testing.T) {
 		t.Log("cannot get factoids")
 		t.Fatal()
 	}
+	t.Log(fs.Count())
+	fs.Dump(os.Stderr)
+
 	fact := &Factoid{
 		Network:  "testnet",
 		Channel:  "##candice",
@@ -36,6 +40,14 @@ func TestFactoids(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	fact.Desc = "s/2/333/"
+	err = fs.Change(fact)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fs.Dump(os.Stderr)
 
 	fs.Close()
 }

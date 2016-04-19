@@ -135,7 +135,35 @@ func (f *FactoidProcessor) factrem(req *MessageRequest, args string) (string, er
 		keyword, channel), nil
 }
 
+// factchange <channel> <keyword> s/<pattern>/<change to>/
+// factchange <channel> <keyword> <new desc>
 func (f *FactoidProcessor) factchange(req *MessageRequest, args string) (string, error) {
+	var channel, keyword, newdesc string
+
+	arr := strings.SplitN(args, " ", 3)
+
+	if len(arr) < 3 {
+		return "Usage: factadd <channel> <keyword> s/<pattern>/<change to>/", nil
+	}
+
+	channel, keyword, newdesc = arr[0], arr[1], arr[2]
+
+	f.Logger.Println("change:", channel, keyword)
+
+	fact := &Factoid{
+		Network: req.irc.config.Name,
+		Owner:   req.from,
+		Nick:    req.nick,
+		Channel: channel,
+		Keyword: keyword,
+		Desc:    newdesc,
+	}
+
+	if err := f.factoids.Change(fact); err != nil {
+		f.Logger.Println("change error:", err)
+		return err.Error(), nil
+	}
+
 	return "", nil
 }
 

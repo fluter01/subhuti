@@ -8,12 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
+	"strings"
 	"time"
 )
 
 var (
 	ErrFactoidNotFound = errors.New("Factoid does not exist")
 	ErrFactoidExists   = errors.New("Factoid already exist")
+	ErrFactoidChange   = errors.New("Invalid factoid change format")
 )
 
 type Factoid struct {
@@ -107,7 +110,11 @@ func (factoids *Factoids) add(fact *Factoid) error {
 			channel.factoids[fact.Keyword] = factoid
 			network.channels[fact.Channel] = channel
 		} else {
-			return ErrFactoidExists
+			if _, ok = channel.factoids[fact.Keyword]; !ok {
+				channel.factoids[fact.Keyword] = factoid
+			} else {
+				return ErrFactoidExists
+			}
 		}
 	}
 	return nil
@@ -140,6 +147,53 @@ func (factoids *Factoids) Remove(fact *Factoid) error {
 	return nil
 }
 
+func (factoids *Factoids) Change(fact *Factoid) error {
+	var (
+		network *networkFactoids
+		channel *channelFactoids
+		factoid *Factoid
+		ok      bool
+	)
+
+	descpat := "^s/([^/]+)/([^/]*)/$"
+	descre := regexp.MustCompile(descpat)
+
+	if network, ok = factoids.networks[fact.Network]; !ok {
+		return ErrFactoidNotFound
+	} else {
+		if channel, ok = network.channels[fact.Channel]; !ok {
+			return ErrFactoidNotFound
+		} else {
+			if factoid, ok = channel.factoids[fact.Keyword]; !ok {
+				return ErrFactoidNotFound
+			} else {
+				newdesc := fact.Desc
+				if strings.HasPrefix(newdesc, "s/") &&
+					strings.HasSuffix(newdesc, "/") {
+					if !descre.MatchString(newdesc) {
+						return ErrFactoidChange
+					}
+					m := descre.FindStringSubmatch(newdesc)
+					if len(m) != 3 || m[1] == "" {
+						return ErrFactoidChange
+					}
+					re := regexp.MustCompile(m[1])
+					rs := re.ReplaceAllString(factoid.Desc, m[2])
+					fmt.Println(rs)
+					factoid.Desc = rs
+				} else {
+					factoid.Desc = newdesc
+				}
+			}
+		}
+	}
+
+	if err := factoids.saveOne(factoid); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (factoids *Factoids) Dump(w io.Writer) error {
 	w.Write([]byte("Factoids\n"))
 	for _, ns := range factoids.networks {
@@ -163,6 +217,16 @@ func (factoids *Factoids) Dump(w io.Writer) error {
 func (factoids *Factoids) Close() {
 	factoids.save()
 	factoids.store.Close()
+}
+
+func (factoids *Factoids) Count() int {
+	var count int
+	for _, network := range factoids.networks {
+		for _, channel := range network.channels {
+			count += len(channel.factoids)
+		}
+	}
+	return count
 }
 
 func (factoids *Factoids) load() error {
