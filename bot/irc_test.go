@@ -3,6 +3,7 @@
 package bot
 
 import (
+	"io"
 	"net"
 	"testing"
 )
@@ -73,6 +74,12 @@ func delTestBot(bot *Bot, t *testing.T, ch chan bool) {
 	if bot.State != Stopped {
 		t.Fail()
 	}
+}
+
+func readLog(r io.Reader, t *testing.T) {
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	t.Log(string(buf[:n]))
 }
 
 var (
@@ -234,10 +241,7 @@ func TestIRCURLParserGetTitle(t *testing.T) {
 	irc.conn = w
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :https://www.bing.com")
-
-	buf := make([]byte, 1024)
-	n, _ := r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
 
 	irc.conn = nil
 	delTestBot(bot, t, ch)
@@ -265,15 +269,10 @@ func TestIRCURLParserPaste(t *testing.T) {
 	irc.conn = w
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :http://ideone.com/FllowW")
-
-	buf := make([]byte, 1024)
-	n, _ := r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :http://sprunge.us/RWOP")
-
-	n, _ = r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
 
 	// no repaste and no reply
 	irc.onCommand("PRIVMSG", "foo", "#candice :http://sprunge.us/UjQf")
@@ -304,19 +303,13 @@ func TestIRCURLParserYoutube(t *testing.T) {
 	irc.conn = w
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :https://www.youtube.com/watch?v=Pd12BmxP-08")
-	buf := make([]byte, 1024)
-	n, _ := r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :https://youtube.com/watch?v=Pd12BmxP-08")
-	buf = make([]byte, 1024)
-	n, _ = r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :https://youtu.be/QEllLECo4OM")
-	buf = make([]byte, 1024)
-	n, _ = r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
 
 	irc.conn = nil
 	delTestBot(bot, t, ch)

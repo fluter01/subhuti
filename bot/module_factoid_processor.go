@@ -3,6 +3,8 @@
 package bot
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -45,12 +47,14 @@ func (f *FactoidProcessor) Start() error {
 		irc.interpreter.RegisterCommand("fact", f.factcall)
 	})
 	f.State = Running
+	f.factoids.Dump(os.Stderr)
 	return nil
 }
 
 func (f *FactoidProcessor) Stop() error {
 	f.Logger.Println("FactoidProcessor stopped")
 	f.State = Stopped
+	f.factoids.Dump(os.Stderr)
 	return nil
 }
 
@@ -70,8 +74,6 @@ func (f *FactoidProcessor) factadd(req *MessageRequest, args string) (string, er
 	var channel, keyword, desc string
 
 	arr := strings.SplitN(args, " ", 3)
-	f.Logger.Println(arr)
-	f.Logger.Println(len(arr))
 
 	if len(arr) < 3 {
 		return "Usage: factadd <channel> <keyword> <description>", nil
@@ -82,6 +84,7 @@ func (f *FactoidProcessor) factadd(req *MessageRequest, args string) (string, er
 	f.Logger.Println("add:", channel, keyword, desc)
 
 	fact := &Factoid{
+		Network:  req.irc.config.Name,
 		Owner:    req.from,
 		Nick:     req.nick,
 		Channel:  channel,
@@ -95,14 +98,41 @@ func (f *FactoidProcessor) factadd(req *MessageRequest, args string) (string, er
 
 	if err := f.factoids.Add(fact); err != nil {
 		f.Logger.Println("add error:", err)
-		return "", err
+		return err.Error(), nil
 	}
 
-	return "", nil
+	return fmt.Sprintf("factoid %s added to %s",
+		keyword, channel), nil
 }
 
 func (f *FactoidProcessor) factrem(req *MessageRequest, args string) (string, error) {
-	return "", nil
+	var channel, keyword string
+
+	arr := strings.SplitN(args, " ", 2)
+
+	if len(arr) < 2 {
+		return "Usage: factadd <channel> <keyword>", nil
+	}
+
+	channel, keyword = arr[0], arr[1]
+
+	f.Logger.Println("remove:", channel, keyword)
+
+	fact := &Factoid{
+		Network: req.irc.config.Name,
+		Owner:   req.from,
+		Nick:    req.nick,
+		Channel: channel,
+		Keyword: keyword,
+	}
+
+	if err := f.factoids.Remove(fact); err != nil {
+		f.Logger.Println("remove error:", err)
+		return err.Error(), nil
+	}
+
+	return fmt.Sprintf("factoid %s removed from %s",
+		keyword, channel), nil
 }
 
 func (f *FactoidProcessor) factchange(req *MessageRequest, args string) (string, error) {

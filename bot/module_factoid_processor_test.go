@@ -23,9 +23,10 @@ func TestFactoidProcessor(t *testing.T) {
 	irc.conn = w
 
 	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd global hi hello")
-	buf := make([]byte, 1024)
-	n, _ := r.Read(buf)
-	t.Log(string(buf[:n]))
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factrem global moo")
+	readLog(r, t)
 
 	irc.conn = nil
 	delTestBot(bot, t, ch)

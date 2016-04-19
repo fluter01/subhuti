@@ -5,9 +5,15 @@ package bot
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"time"
+)
+
+var (
+	ErrFactoidNotFound = errors.New("Factoid does not exist")
+	ErrFactoidExists   = errors.New("Factoid already exist")
 )
 
 type Factoid struct {
@@ -61,14 +67,16 @@ func NewFactoids(dbpath string) *Factoids {
 }
 
 func (factoids *Factoids) Add(fact *Factoid) error {
-	factoids.add(fact)
+	if err := factoids.add(fact); err != nil {
+		return err
+	}
 	if err := factoids.saveOne(fact); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (factoids *Factoids) add(fact *Factoid) {
+func (factoids *Factoids) add(fact *Factoid) error {
 	var (
 		network *networkFactoids
 		channel *channelFactoids
@@ -99,9 +107,37 @@ func (factoids *Factoids) add(fact *Factoid) {
 			channel.factoids[fact.Keyword] = factoid
 			network.channels[fact.Channel] = channel
 		} else {
-			channel.factoids[fact.Keyword] = factoid
+			return ErrFactoidExists
 		}
 	}
+	return nil
+}
+
+func (factoids *Factoids) Remove(fact *Factoid) error {
+	var (
+		network *networkFactoids
+		channel *channelFactoids
+		ok      bool
+	)
+
+	if network, ok = factoids.networks[fact.Network]; !ok {
+		return ErrFactoidNotFound
+	} else {
+		if channel, ok = network.channels[fact.Channel]; !ok {
+			return ErrFactoidNotFound
+		} else {
+			if _, ok = channel.factoids[fact.Keyword]; !ok {
+				return ErrFactoidNotFound
+			} else {
+				delete(channel.factoids, fact.Keyword)
+			}
+		}
+	}
+
+	if err := factoids.removeOne(fact); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (factoids *Factoids) Dump(w io.Writer) error {
@@ -195,6 +231,22 @@ func (factoids *Factoids) saveOne(factoid *Factoid) error {
 	value = buf.Bytes()
 
 	if err := factoids.store.Put(key, value); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (factoids *Factoids) removeOne(factoid *Factoid) error {
+	var (
+		key string
+	)
+
+	key = fmt.Sprintf("%s.%s.%s",
+		factoid.Network,
+		factoid.Channel,
+		factoid.Keyword)
+
+	if err := factoids.store.Delete(key); err != nil {
 		return err
 	}
 	return nil
