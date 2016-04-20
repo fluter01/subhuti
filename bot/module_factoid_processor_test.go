@@ -25,7 +25,31 @@ func TestFactoidProcessor(t *testing.T) {
 	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd global hi hello")
 	readLog(r, t)
 
-	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factrem global moo")
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd global int16 16bits")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd #c NULL Null is null pointer")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd #c int Integer")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd #c int32_t 32bits integer")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd #c int64_t 64bits int")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factadd #c malloc malloc")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factfind -channel foo -by bar hi")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factfind -channel #c int")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factfind int")
 	readLog(r, t)
 
 	irc.conn = nil

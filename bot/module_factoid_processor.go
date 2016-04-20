@@ -3,6 +3,7 @@
 package bot
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -167,8 +168,64 @@ func (f *FactoidProcessor) factchange(req *MessageRequest, args string) (string,
 	return "", nil
 }
 
+// factfind [-channel channel] [-owner nick] [-by nick] [text]
 func (f *FactoidProcessor) factfind(req *MessageRequest, args string) (string, error) {
-	return "", nil
+	var (
+		channel string
+		owner   string
+		by      string
+		text    string
+	)
+
+	arr := strings.Split(args, " ")
+
+	flags := flag.NewFlagSet("factchange", flag.ContinueOnError)
+	flags.StringVar(&channel, "channel", "", "the channel")
+	flags.StringVar(&owner, "onwer", "", "the channel")
+	flags.StringVar(&by, "by", "", "the channel")
+	flags.StringVar(&text, "text", "", "the channel")
+	err := flags.Parse(arr)
+	if err != nil {
+		f.Logger.Println("find error:", err)
+		return "Usage: factfind [-channel channel] [-owner nick] [-by nick] [text]", nil
+	}
+
+	if flags.NArg() < 1 {
+		return "Usage: factfind [-channel channel] [-owner nick] [-by nick] [text]", nil
+	}
+
+	text = flags.Arg(0)
+	//	if channel == "" {
+	//		channel = req.channel
+	//	}
+
+	fact := &Factoid{
+		Network: req.irc.config.Name,
+		Channel: channel,
+		Nick:    owner,
+		RefUser: by,
+		Keyword: text,
+	}
+
+	var facts []*Factoid
+
+	facts, err = f.factoids.Find(fact)
+	if err != nil {
+		f.Logger.Println("find error:", err)
+		return err.Error(), nil
+	}
+
+	if len(facts) == 0 {
+		return "No factoids found", nil
+	}
+
+	var result []string
+	for _, fact = range facts {
+		result = append(result, fmt.Sprintf("[%s] %s",
+			fact.Channel, fact.Keyword))
+	}
+
+	return strings.Join(result, " "), nil
 }
 
 func (f *FactoidProcessor) factinfo(req *MessageRequest, args string) (string, error) {

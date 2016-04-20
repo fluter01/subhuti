@@ -194,6 +194,54 @@ func (factoids *Factoids) Change(fact *Factoid) error {
 	return nil
 }
 
+func (factoids *Factoids) Find(fact *Factoid) ([]*Factoid, error) {
+	var (
+		network *networkFactoids
+		channel *channelFactoids
+		factoid *Factoid
+		ok      bool
+		result  []*Factoid
+	)
+
+	if network, ok = factoids.networks[fact.Network]; !ok {
+		return nil, nil
+	}
+
+	if fact.Channel != "" {
+		if channel, ok = network.channels[fact.Channel]; !ok {
+			return nil, nil
+		}
+		for _, factoid = range channel.factoids {
+			if fact.Nick != "" && fact.Nick != factoid.Nick {
+				continue
+			}
+			if fact.RefUser != "" && fact.RefUser != factoid.RefUser {
+				continue
+			}
+			if strings.Index(factoid.Keyword, fact.Keyword) != -1 {
+				t := *factoid
+				result = append(result, &t)
+			}
+		}
+	} else {
+		for _, channel = range network.channels {
+			for _, factoid = range channel.factoids {
+				if fact.Nick != "" && fact.Nick != factoid.Nick {
+					continue
+				}
+				if fact.RefUser != "" && fact.RefUser != factoid.RefUser {
+					continue
+				}
+				if strings.Index(factoid.Keyword, fact.Keyword) != -1 {
+					t := *factoid
+					result = append(result, &t)
+				}
+			}
+		}
+	}
+	return result, nil
+}
+
 func (factoids *Factoids) Dump(w io.Writer) error {
 	w.Write([]byte("Factoids\n"))
 	for _, ns := range factoids.networks {
