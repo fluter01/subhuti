@@ -180,7 +180,6 @@ func (factoids *Factoids) Change(fact *Factoid) error {
 					}
 					re := regexp.MustCompile(m[1])
 					rs := re.ReplaceAllString(factoid.Desc, m[2])
-					fmt.Println(rs)
 					factoid.Desc = rs
 				} else {
 					factoid.Desc = newdesc
@@ -250,9 +249,6 @@ func (factoids *Factoids) Get(fact *Factoid) (*Factoid, error) {
 		factoid *Factoid
 		ok      bool
 	)
-	fmt.Println(fact.Network)
-	fmt.Println(fact.Channel)
-	fmt.Println(fact.Keyword)
 
 	if network, ok = factoids.networks[fact.Network]; !ok {
 		return nil, ErrFactoidNotFound

@@ -47,6 +47,7 @@ func (f *FactoidProcessor) Start() error {
 		irc.interpreter.RegisterCommand("factset", f.factset)
 		irc.interpreter.RegisterCommand("fact", f.factcall)
 	})
+	f.bot.RegisterEventHandler(MessageParseEvent, f.handleMessage)
 	f.State = Running
 	f.factoids.Dump(os.Stderr)
 	return nil
@@ -340,4 +341,33 @@ func (f *FactoidProcessor) factcall(req *MessageRequest, args string) (string, e
 	}
 	req.prefix = false
 	return factoid.Desc, nil
+}
+
+func (f *FactoidProcessor) handleMessage(data interface{}) {
+	req, ok := data.(*MessageRequest)
+	if !ok {
+		return
+	}
+
+	if req.keyword == "" {
+		return
+	}
+
+	fact := &Factoid{
+		Network: req.irc.config.Name,
+		Channel: req.channel,
+		Keyword: req.keyword,
+	}
+	if req.channel == "" {
+		fact.Channel = "global"
+	}
+
+	factoid, err := f.factoids.Get(fact)
+	if err != nil {
+		f.Logger.Println("find error:", err)
+		return
+	}
+	req.prefix = false
+	req.irc.sendReply(factoid.Desc, req)
+	return
 }

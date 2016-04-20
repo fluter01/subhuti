@@ -7,18 +7,20 @@ import (
 
 // Message data for intepret
 type MessageRequest struct {
-	irc     *IRC
-	ischan  bool
-	from    string
-	nick    string
-	user    string
-	host    string
-	channel string
-	text    string
-	direct  bool
-	url     string
-	neturl  *url.URL
-	prefix  bool
+	irc       *IRC
+	ischan    bool
+	from      string
+	nick      string
+	user      string
+	host      string
+	channel   string
+	text      string
+	direct    bool
+	url       string
+	neturl    *url.URL
+	prefix    bool
+	keyword   string
+	arguments string
 }
 
 func (req *MessageRequest) String() string {

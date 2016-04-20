@@ -209,6 +209,7 @@ Found:
 		}
 		return
 	}
+	req.keyword, req.arguments = keyword, arguments
 	i.parse(req)
 	return
 }
