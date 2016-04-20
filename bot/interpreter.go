@@ -138,14 +138,10 @@ func (i *Interpreter) sendReply(res string, req *MessageRequest) {
 	if res == "" {
 		return
 	}
-	if req.ischan {
-		if req.direct {
-			i.irc.Privmsg(req.channel, fmt.Sprintf("%s: %s", req.nick, res))
-		} else {
-			i.irc.Privmsg(req.channel, res)
-		}
+	if req.prefix {
+		i.irc.Privmsg(req.channel, fmt.Sprintf("%s: %s", req.nick, res))
 	} else {
-		i.irc.Privmsg(req.nick, res)
+		i.irc.Privmsg(req.channel, res)
 	}
 }
 
@@ -157,6 +153,7 @@ func (i *Interpreter) handleRequest(req *MessageRequest) {
 	if i.nickRe.FindStringIndex(req.text) != nil {
 		req.direct = true
 	}
+	req.prefix = req.ischan && req.direct
 
 	var command string
 	var text string

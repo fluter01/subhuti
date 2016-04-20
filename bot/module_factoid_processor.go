@@ -338,6 +338,6 @@ func (f *FactoidProcessor) factcall(req *MessageRequest, args string) (string, e
 		f.Logger.Println("find error:", err)
 		return err.Error(), nil
 	}
-
+	req.prefix = false
 	return factoid.Desc, nil
 }

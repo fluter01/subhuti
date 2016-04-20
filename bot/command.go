@@ -18,6 +18,7 @@ type MessageRequest struct {
 	direct  bool
 	url     string
 	neturl  *url.URL
+	prefix  bool
 }
 
 func (req *MessageRequest) String() string {
