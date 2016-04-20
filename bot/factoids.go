@@ -243,7 +243,7 @@ func (factoids *Factoids) Find(fact *Factoid) ([]*Factoid, error) {
 	return result, nil
 }
 
-func (factoids *Factoids) Info(fact *Factoid) (*Factoid, error) {
+func (factoids *Factoids) Get(fact *Factoid) (*Factoid, error) {
 	var (
 		network *networkFactoids
 		channel *channelFactoids
