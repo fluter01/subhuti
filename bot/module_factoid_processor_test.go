@@ -52,6 +52,12 @@ func TestFactoidProcessor(t *testing.T) {
 	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factfind int")
 	readLog(r, t)
 
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factinfo int16")
+	readLog(r, t)
+
+	irc.onCommand("PRIVMSG", "foo", "#candice :"+G+": factinfo #c int")
+	readLog(r, t)
+
 	irc.conn = nil
 	delTestBot(bot, t, ch)
 }

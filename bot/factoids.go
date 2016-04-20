@@ -29,6 +29,7 @@ type Factoid struct {
 	Created  time.Time
 	RefCount int
 	RefUser  string
+	RefTime  time.Time
 	Enabled  bool
 }
 
@@ -240,6 +241,32 @@ func (factoids *Factoids) Find(fact *Factoid) ([]*Factoid, error) {
 		}
 	}
 	return result, nil
+}
+
+func (factoids *Factoids) Info(fact *Factoid) (*Factoid, error) {
+	var (
+		network *networkFactoids
+		channel *channelFactoids
+		factoid *Factoid
+		ok      bool
+	)
+	fmt.Println(fact.Network)
+	fmt.Println(fact.Channel)
+	fmt.Println(fact.Keyword)
+
+	if network, ok = factoids.networks[fact.Network]; !ok {
+		return nil, ErrFactoidNotFound
+	}
+
+	if channel, ok = network.channels[fact.Channel]; !ok {
+		return nil, ErrFactoidNotFound
+	}
+
+	if factoid, ok = channel.factoids[fact.Keyword]; !ok {
+		return nil, ErrFactoidNotFound
+	}
+
+	return factoid, nil
 }
 
 func (factoids *Factoids) Dump(w io.Writer) error {

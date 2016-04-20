@@ -228,8 +228,49 @@ func (f *FactoidProcessor) factfind(req *MessageRequest, args string) (string, e
 	return strings.Join(result, " "), nil
 }
 
+// factinfo [channel] <keyword>
 func (f *FactoidProcessor) factinfo(req *MessageRequest, args string) (string, error) {
-	return "", nil
+	var (
+		channel string
+		keyword string
+	)
+
+	arr := strings.SplitN(args, " ", 2)
+
+	if len(arr) < 1 {
+		return "Usage: factinfo [channel] <keyword>", nil
+	}
+
+	if len(arr) == 2 {
+		channel, keyword = arr[0], arr[1]
+	} else {
+		channel, keyword = "global", arr[0]
+	}
+
+	fact := &Factoid{
+		Network: req.irc.config.Name,
+		Channel: channel,
+		Keyword: keyword,
+	}
+
+	factoid, err := f.factoids.Info(fact)
+	if err != nil {
+		f.Logger.Println("find error:", err)
+		return err.Error(), nil
+	}
+
+	// <pragma_> candide, factinfo ##c NULL
+	// <candide> NULL: Factoid submitted by Major-Willard for all channels on Sat Jan 1 16:17:42 2005
+	// [5 years and 178 days ago], referenced 39 times (last by pragma_ on Sun Jun 27 04:40:32 2010 [5 seconds ago])
+
+	chanstr := factoid.Channel
+	if chanstr == "global" {
+		chanstr = "all channels"
+	}
+	return fmt.Sprintf("%s: Factoid submitted by %s for %s on %s,"+
+		" referenced %d times (last by %s on %s)",
+		factoid.Keyword, factoid.Nick, chanstr, factoid.Created,
+		factoid.RefCount, factoid.RefUser, factoid.RefTime), nil
 }
 
 func (f *FactoidProcessor) factshow(req *MessageRequest, args string) (string, error) {
