@@ -29,8 +29,8 @@ const (
 	PrivateMessage
 	ChannelMessage
 	Disconnect
-	EventCount
 	MessageParseEvent
+	EventCount
 )
 
 func (evt EventType) String() string {
@@ -44,6 +44,7 @@ func (evt EventType) String() string {
 		"PrivateMessage",
 		"ChannelMessage",
 		"Disconnect",
+		"MessageParseEvent",
 	}
 	if evt < EventCount {
 		return eventNames[evt]

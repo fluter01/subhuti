@@ -5,6 +5,7 @@ package bot
 import (
 	"crypto/x509"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"time"
 )
@@ -67,4 +68,8 @@ func dateTime(t time.Time) string {
 	h, mi, s := t.Clock()
 	return fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d",
 		y, m, d, h, mi, s)
+}
+
+func bt() {
+	debug.PrintStack()
 }

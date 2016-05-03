@@ -25,6 +25,10 @@ func NewFactoidProcessor(bot *Bot) Module {
 	f.bot = bot
 	f.Name = "FactoidProcessor"
 	f.Logger = bot.Logger
+	if bot.config.DataDir == "" || bot.config.DB == "" {
+		bot.Logger.Println("DataDir or DB is not configured")
+		return nil
+	}
 	f.factoids = NewFactoids(bot.config.DataDir + "/" + bot.config.DB)
 	return f
 }
@@ -364,7 +368,8 @@ func (f *FactoidProcessor) handleMessage(data interface{}) {
 
 	factoid, err := f.factoids.Get(fact)
 	if err != nil {
-		f.Logger.Println("find error:", err)
+		f.Logger.Printf("no factoid %s/%s for %s",
+			fact.Keyword, req.arguments, fact.Channel)
 		return
 	}
 	req.prefix = false

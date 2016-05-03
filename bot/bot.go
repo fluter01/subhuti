@@ -5,8 +5,34 @@ package bot
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
+
+const numWorkers = 16
+
+type eventWorker struct {
+	id      int
+	eventCh chan *Event
+	quitCh  chan bool
+	wg      *sync.WaitGroup
+}
+
+func (w *eventWorker) start(bot *Bot) {
+	for {
+		select {
+		case event := <-w.eventCh:
+			if event == nil {
+				continue
+			}
+			bot.handleEvent(event)
+			break
+		case <-w.quitCh:
+			w.wg.Done()
+			return
+		}
+	}
+}
 
 type Bot struct {
 	BaseModule
@@ -50,7 +76,10 @@ func NewBot(name string, config *BotConfig) *Bot {
 
 	// create addon modules
 	for _, f := range initModuleFuncs {
-		bot.modules = append(bot.modules, f(bot))
+		mod := f(bot)
+		if mod != nil {
+			bot.modules = append(bot.modules, mod)
+		}
 	}
 
 	bot.State = Initialized
@@ -83,26 +112,23 @@ func (bot *Bot) Start() {
 	}
 
 	bot.State = Running
-	bot.wait.Add(1)
 	bot.loop()
 }
 
 func (bot *Bot) loop() {
-	var event *Event
-	var exit bool
-	for !exit {
-		select {
-		case event = <-bot.eventQ:
-			if event == nil {
-				continue
-			}
-			bot.handleEvent(event)
-			break
-		case exit = <-bot.exitCh:
-			break
-		}
+	var quit chan bool = make(chan bool)
+
+	for i := 0; i < numWorkers; i++ {
+		bot.wait.Add(1)
+		w := &eventWorker{i, bot.eventQ, quit, &bot.wait}
+		go w.start(bot)
 	}
-	bot.wait.Done()
+
+	exit := <-bot.exitCh
+	if exit {
+		close(quit)
+	}
+
 	bot.Logger.Print("Bot exiting")
 }
 
