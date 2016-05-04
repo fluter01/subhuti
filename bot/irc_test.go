@@ -194,7 +194,8 @@ func TestIRCCommandPrivate(t *testing.T) {
 	}
 
 	var counter int
-	var c chan bool = make(chan bool)
+	c = make(chan bool)
+	pc = &counter
 	irc.interpreter.RegisterCommand("bash", bashCmd)
 
 	irc.onCommand("PRIVMSG", "", "foo :hello")
