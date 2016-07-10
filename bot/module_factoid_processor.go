@@ -5,7 +5,6 @@ package bot
 import (
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 )
@@ -53,14 +52,14 @@ func (f *FactoidProcessor) Start() error {
 	})
 	f.bot.RegisterEventHandler(MessageParseEvent, f.handleMessage)
 	f.State = Running
-	f.factoids.Dump(os.Stderr)
+	//	f.factoids.Dump(os.Stderr)
 	return nil
 }
 
 func (f *FactoidProcessor) Stop() error {
 	f.Logger.Println("FactoidProcessor stopped")
 	f.State = Stopped
-	f.factoids.Dump(os.Stderr)
+	//	f.factoids.Dump(os.Stderr)
 	return nil
 }
 
