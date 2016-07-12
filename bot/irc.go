@@ -233,6 +233,10 @@ func (irc *IRC) connect() error {
 	var raddr *net.TCPAddr
 	var tcpConn *net.TCPConn
 
+	if irc.State >= Running {
+		return nil
+	}
+
 	for {
 		addr = fmt.Sprintf("%s:%d",
 			irc.config.Server,

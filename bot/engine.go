@@ -31,6 +31,7 @@ func NewCommandEngine(bot *Bot) *CommandEngine {
 	e.commands["CONNECT"] = e.onConnect
 	e.commands["DISCONNECT"] = e.onDisconnect
 	e.commands["RECONNECT"] = e.onReconnect
+	e.commands["MSG"] = e.onMsg
 
 	return e
 }
@@ -160,15 +161,39 @@ func (e *CommandEngine) onExit(string) error {
 }
 
 func (e *CommandEngine) onConnect(string) error {
-	return nil
-	//return bot.IRC().connect()
+	var err error
+	e.bot.foreachIRC(func(irc *IRC) {
+		err = irc.connect()
+	})
+	return err
 }
 
 func (e *CommandEngine) onDisconnect(string) error {
-	//bot.IRC().disconnect()
+	e.bot.foreachIRC(func(irc *IRC) {
+		irc.disconnect()
+	})
 	return nil
 }
 
 func (e *CommandEngine) onReconnect(string) error {
-	return nil
+	e.onDisconnect("")
+	return e.onConnect("")
+}
+
+func (e *CommandEngine) onMsg(args string) error {
+	var (
+		nick string
+		msg  string
+		err  error
+	)
+	arr := strings.SplitN(args, " ", 2)
+	if len(arr) < 2 {
+		e.Logger.Println("Insufficient args to MSG")
+		return nil
+	}
+	nick, msg = arr[0], arr[1]
+	e.bot.foreachIRC(func(irc *IRC) {
+		err = irc.Privmsg(nick, msg)
+	})
+	return err
 }
