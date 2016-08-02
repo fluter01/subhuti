@@ -88,6 +88,9 @@ func NewIRC(bot *Bot, config *IRCConfig) *IRC {
 	} else {
 		irc.rawLogger = NewLoggerFunc("")
 	}
+	if config.DebugMode && config.RedirectTo == "" {
+		config.DebugMode = false
+	}
 	irc.State = Disconnected
 	irc.exitCh = make(chan bool)
 	irc.msgCh = make(chan string)

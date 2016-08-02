@@ -36,6 +36,8 @@ type IRCConfig struct {
 	Trigger         byte
 	RawLogging      bool
 	AutoConnect     bool
+	DebugMode       bool
+	RedirectTo      string
 	Channels        []*ChannelConfig
 }
 

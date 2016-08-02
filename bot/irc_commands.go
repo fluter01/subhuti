@@ -90,8 +90,12 @@ func (irc *IRC) Privmsg(to, msg string) error {
 			ch.onPrivmsg(irc.config.BotNick, msg)
 		}
 	}
-	line = fmt.Sprintf("PRIVMSG %s :%s", to, msg)
 
+	if irc.config.DebugMode {
+		line = fmt.Sprintf("PRIVMSG %s :%s :%s", irc.config.RedirectTo, to, msg)
+	} else {
+		line = fmt.Sprintf("PRIVMSG %s :%s", to, msg)
+	}
 	return irc.sendMsg(line)
 }
 
