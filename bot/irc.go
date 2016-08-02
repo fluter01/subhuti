@@ -600,8 +600,8 @@ func (irc *IRC) GetChannel(ch string) *Channel {
 func (irc *IRC) JoinChannel(ch string) *Channel {
 	var channel *Channel
 
-	if _, ok := irc.channels[ch]; ok {
-		panic(ch)
+	if channel, ok := irc.channels[ch]; ok {
+		return channel
 	}
 
 	channel = NewChannel(irc, ch)
@@ -611,8 +611,8 @@ func (irc *IRC) JoinChannel(ch string) *Channel {
 
 func (irc *IRC) LeaveChannel(ch string) *Channel {
 	var channel *Channel
-	if ch, ok := irc.channels[ch]; !ok {
-		panic(ch)
+	if _, ok := irc.channels[ch]; !ok {
+		return nil
 	}
 	delete(irc.channels, ch)
 	return channel
